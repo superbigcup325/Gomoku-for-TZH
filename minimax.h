@@ -44,11 +44,11 @@ public:
 };
 
 inline int Minimax::evaluatePiece(const Gomoku& g, int x, int y, Player player) const {
-    if (g.getPlayer(x,y)!=player) return 0;
+    if (g.getColor(x,y)!=player) return 0;
     int score=0;
     for (auto&[dx,dy]:Config::directions) {
         int bx=x-dx,by=y-dy;
-        if (!g.outOfRange(bx,by)&&g.getPlayer(bx,by)==player) continue;
+        if (!g.outOfRange(bx,by)&&g.getColor(bx,by)==player) continue;
         Gomoku::Pattern pattern=g.analyzeForm(x,y,dx,dy,player);
         score+=patternScore(pattern);
     }
@@ -56,7 +56,7 @@ inline int Minimax::evaluatePiece(const Gomoku& g, int x, int y, Player player) 
 }
 
 inline int Minimax::evaluateEmpty(const Gomoku& g,int x,int y) const {
-    if (g.getPlayer(x,y)!=NONE) return 0;
+    if (g.getColor(x,y)!=NONE) return 0;
     int score=0;
 
     for (auto& [dx,dy]:Config::directions) {
@@ -73,7 +73,7 @@ inline int Minimax::evaluate(const Gomoku& g) const {
 
     for (int x=1;x<=size;x++) {
         for (int y=1;y<=size;y++) {
-            Player p=g.getPlayer(x,y);
+            Player p=g.getColor(x,y);
             if (p==self) {
                 selfScore+=evaluatePiece(g,x,y,self);
             }
@@ -95,11 +95,11 @@ inline std::vector<std::pair<int,int>> Minimax::getCandidateMoves(const Gomoku& 
     // 收集所有已有棋子周围2格内的空位
     for (int x=1;x<=size;x++)
     for (int y=1;y<=size;y++)
-    if (g.getPlayer(x,y)!=NONE)
+    if (g.getColor(x,y)!=NONE)
     for (int dx=-2;dx<=2;dx++)
     for (int dy=-2;dy<=2;dy++) {
         int nx=x+dx,ny=y+dy;
-        if (!g.outOfRange(nx,ny) && g.getPlayer(nx,ny)==NONE) {
+        if (!g.outOfRange(nx,ny) && g.getColor(nx,ny)==NONE) {
             int idx=(nx-1)*size+(ny-1);
             if (!visited[idx]) {
                 candidates.push_back({nx,ny});
