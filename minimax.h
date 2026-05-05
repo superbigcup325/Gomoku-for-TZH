@@ -201,6 +201,4 @@ std::pair<int,int> Minimax::getBestMove(Gomoku& g) {
     return bestMove;
 }
 
-
-
 #endif //GO_MINIMAX_H
