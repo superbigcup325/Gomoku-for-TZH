@@ -53,26 +53,27 @@ public:
         inline bool isBlock3() const { return count == 3 && openEnds == 1; }
         inline bool isActive() const { return openEnds > 0; }
     };
-    Gomoku(const int size_value=38);
+    Gomoku(const int size_val=38);
     void set(const int x,const int y,const Player currentPlayer); // 落子
     bool outOfRange(const int x,const int y) const; // 超出范围
     bool isForbidden(const int x,const int y,Player player) const; // 判断禁手
-    bool validPosition(const int x,const int y,Player player); // 坐标是否合法
+    bool validPosition(const int x,const int y,Player player) const; // 坐标是否合法
     bool Win(const int x,const int y,const Player currentPlayer) const; // 判断是否有胜利
     bool GameOver() const; // 判断是否结束 平局？
     void show() const; // 显示棋盘
     const std::vector<int8_t>& getGraph() const; // 获取棋盘状态
     inline int getSize() const { return size; }
     void undo(const int x,const int y); // 撤销
-    Player getPlayer(const int x,const int y) const; // 获取指定位置的子色
+    Player getColor(const int x,const int y) const; // 获取指定位置的子色
     inline size_t pos(int x,int y) const noexcept { return static_cast<size_t>((x-1)*size+(y-1)); } // 位置转换
     Pattern analyzeForm(const int x,int y,int dx,int dy,Player player) const;    
 private:
     std::vector<int8_t> graph;
     // 0 none, 1 black, 2 white
-    int maxCount;
-    int currentCount;
     int size;
+    int currentCount;
+    int maxCount;
+
     struct Formation {
         Pattern patterns[4];
         Player player;
@@ -116,7 +117,7 @@ private:
     Gomoku::Formation analyzeAll(const int x,const int y,Player player) const;
 };
 
-Gomoku::Formation Gomoku::analyzeAll(const int x,const int y,Player player) const {
+inline Gomoku::Formation Gomoku::analyzeAll(const int x,const int y,Player player) const {
     Formation formation;
     const_cast<std::vector<int8_t>&>(graph)[pos(x,y)]=player;
     formation.player=player;
@@ -132,38 +133,38 @@ Gomoku::Formation Gomoku::analyzeAll(const int x,const int y,Player player) cons
     return formation;
 }
     
-Gomoku::Pattern Gomoku::analyzeForm(const int x,const int y,int dx,int dy,Player player) const {
+inline Gomoku::Pattern Gomoku::analyzeForm(const int x,const int y,int dx,int dy,Player player) const {
     Pattern pattern;
     // 正向
     int nx=x+dx,ny=y+dy;
-    while (!outOfRange(nx,ny)&&getPlayer(nx,ny)==player) {
+    while (!outOfRange(nx,ny)&&getColor(nx,ny)==player) {
         pattern.count++;
         nx+=dx,ny+=dy;
     }
-    if (!outOfRange(nx,ny)&&getPlayer(nx,ny)==NONE) {
+    if (!outOfRange(nx,ny)&&getColor(nx,ny)==NONE) {
         pattern.openEnds++;
     }
     //反向
     nx=x-dx,ny=y-dy;
-    while (!outOfRange(nx,ny)&&getPlayer(nx,ny)==player) {
+    while (!outOfRange(nx,ny)&&getColor(nx,ny)==player) {
         pattern.count++;
         nx-=dx,ny-=dy;
     }
-    if (!outOfRange(nx,ny)&&getPlayer(nx,ny)==NONE) {
+    if (!outOfRange(nx,ny)&&getColor(nx,ny)==NONE) {
         pattern.openEnds++;
     }
 
     return pattern;
 }
 
-Gomoku::Gomoku(const int size_value):
-    size(size_value),
+inline Gomoku::Gomoku(const int size_val):
+    size(size_val),
     currentCount(0),
-    maxCount(size_value*size_value) {
+    maxCount(size_val*size_val) {
     graph.resize(size*size,0);
 }
 
-void Gomoku::set(const int x,const int y,const Player player) {
+inline void Gomoku::set(const int x,const int y,const Player player) {
     if (!validPosition(x,y,player)) {
         std::cout<<"error: invalid position"<<std::endl;
         return;
@@ -172,11 +173,11 @@ void Gomoku::set(const int x,const int y,const Player player) {
     currentCount++;
 }
 
-bool Gomoku::outOfRange(const int x,const int y) const {
+inline bool Gomoku::outOfRange(const int x,const int y) const {
     return (x<1||x>size||y<1||y>size);
 }
 
-bool Gomoku::isForbidden(const int x,const int y,Player player) const {
+inline bool Gomoku::isForbidden(const int x,const int y,Player player) const {
     if (player!=BLACK) return false;
 
     Formation formation=analyzeAll(x,y,player);
@@ -199,7 +200,7 @@ bool Gomoku::isForbidden(const int x,const int y,Player player) const {
     return false;
 }
 
-bool Gomoku::validPosition(const int x,const int y,Player player) {
+inline bool Gomoku::validPosition(const int x,const int y,Player player) const {
     // 是否出界
     if (outOfRange(x,y)) return false;
     // 是否下过
@@ -209,7 +210,7 @@ bool Gomoku::validPosition(const int x,const int y,Player player) {
     return true;
 }
 
-bool Gomoku::Win(const int x,const int y,const Player currentPlayer) const {
+inline bool Gomoku::Win(const int x,const int y,const Player currentPlayer) const {
     for (auto& [dx,dy]:Config::directions) {
         Pattern pattern;
         int nx=x+dx,ny=y+dy;
@@ -227,11 +228,11 @@ bool Gomoku::Win(const int x,const int y,const Player currentPlayer) const {
     return false;
 }
 
-bool Gomoku::GameOver() const {
+inline bool Gomoku::GameOver() const {
     return currentCount>=maxCount;
 }
 
-void Gomoku::show() const {
+inline void Gomoku::show() const {
     std::cout<<"   ";
     for (int j=1;j<=size;j++) {
         std::cout.width(2);
@@ -251,11 +252,11 @@ void Gomoku::show() const {
     }
 }
 
-const std::vector<int8_t>& Gomoku::getGraph() const {
+inline const std::vector<int8_t>& Gomoku::getGraph() const {
     return graph;
 }
 
-void Gomoku::undo(const int x,const int y) {
+inline void Gomoku::undo(const int x,const int y) {
     if (outOfRange(x,y)) return;
     if (currentCount==0) return;
     if (graph[pos(x,y)]==NONE) return;
@@ -263,7 +264,7 @@ void Gomoku::undo(const int x,const int y) {
     graph[pos(x,y)]=0;
 }
 
-Player Gomoku::getPlayer(const int x,const int y) const {
+inline Player Gomoku::getColor(const int x,const int y) const {
     if (outOfRange(x,y)) return NONE;
     return graph[pos(x,y)]==BLACK? BLACK:graph[pos(x,y)]==WHITE? WHITE:NONE;
 }
