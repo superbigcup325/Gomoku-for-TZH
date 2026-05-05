@@ -10,9 +10,9 @@ class Minimax {
 private:
     Player self;
     Player opponent;
-    const double defendWeight=1.1;
-    int depth;
+    int maxDepth;
     int nodeCount;
+    const double defendWeight=1.1;
 
     inline int patternScore(const Gomoku::Pattern& pattern) const {
         switch (pattern.form()) {
@@ -36,14 +36,14 @@ private:
     std::vector<std::pair<int,int>> getCandidateMoves(const Gomoku& g) const;
     int alphaBeta(Gomoku& g,int depth,int alpha,int beta,bool isMaximizing);
 public:
-    Minimax(Player self_value,int depth_value,double defendWeight_value=1.1);
+    Minimax(const Player self_value,const int maxDepth_value,const double defendWeight_value=1.1);
     std::pair<int,int> getBestMove(Gomoku& g);
-    void setDepth(int depth_value) { depth = depth_value; }
+    void setDepth(int depth_value) { maxDepth = depth_value; }
     int getNodesSearched() const { return nodeCount; }
     Player getSelf() const { return self; }
 };
 
-int Minimax::evaluatePiece(const Gomoku& g, int x, int y, Player player) const {
+inline int Minimax::evaluatePiece(const Gomoku& g, int x, int y, Player player) const {
     if (g.getPlayer(x,y)!=player) return 0;
     int score=0;
     for (auto&[dx,dy]:Config::directions) {
@@ -55,7 +55,7 @@ int Minimax::evaluatePiece(const Gomoku& g, int x, int y, Player player) const {
     return score;
 }
 
-int Minimax::evaluateEmpty(const Gomoku& g,int x,int y) const {
+inline int Minimax::evaluateEmpty(const Gomoku& g,int x,int y) const {
     if (g.getPlayer(x,y)!=NONE) return 0;
     int score=0;
 
@@ -66,10 +66,10 @@ int Minimax::evaluateEmpty(const Gomoku& g,int x,int y) const {
     return score;
 }
 
-int Minimax::evaluate(const Gomoku& g) const {
+inline int Minimax::evaluate(const Gomoku& g) const {
     int selfScore=0;
     int opponentScore=0;
-    int size=g.getSize();
+    const int size=g.getSize();
 
     for (int x=1;x<=size;x++) {
         for (int y=1;y<=size;y++) {
@@ -87,7 +87,7 @@ int Minimax::evaluate(const Gomoku& g) const {
     return static_cast<int>(val);
 }
 
-std::vector<std::pair<int,int>> Minimax::getCandidateMoves(const Gomoku& g) const {
+inline std::vector<std::pair<int,int>> Minimax::getCandidateMoves(const Gomoku& g) const {
     int size=g.getSize();
     std::vector<bool> visited(size*size,false);
     std::vector<std::pair<int,int>> candidates;
@@ -127,7 +127,7 @@ std::vector<std::pair<int,int>> Minimax::getCandidateMoves(const Gomoku& g) cons
     return candidates;
 }
 
-int Minimax::alphaBeta(Gomoku& g,int depth,int alpha,int beta,bool isMaximizing) {
+inline int Minimax::alphaBeta(Gomoku& g,int depth,int alpha,int beta,bool isMaximizing) {
     nodeCount++;
 
     if (depth==0||g.GameOver()) return evaluate(g);
@@ -171,14 +171,14 @@ int Minimax::alphaBeta(Gomoku& g,int depth,int alpha,int beta,bool isMaximizing)
     }
 }
 
-Minimax::Minimax(Player self_value,int depth_value,double defendWeight_value):
+inline Minimax::Minimax(const Player self_value,const int maxDepth_value,const double defendWeight_value):
     self(self_value),
     opponent(self_value==BLACK? WHITE:BLACK),
-    depth(depth_value),
+    maxDepth(maxDepth_value),
     nodeCount(0),
     defendWeight(defendWeight_value) {}
 
-std::pair<int,int> Minimax::getBestMove(Gomoku& g) {
+inline std::pair<int,int> Minimax::getBestMove(Gomoku& g) {
     nodeCount=0;
     int bestScore=INT_MIN;
     std::pair<int,int> bestMove={-1,-1};
@@ -191,7 +191,7 @@ std::pair<int,int> Minimax::getBestMove(Gomoku& g) {
             g.undo(x,y);
             return {x,y};
         }
-        int value=alphaBeta(g,depth-1,INT_MIN,INT_MAX,false);
+        int value=alphaBeta(g,maxDepth-1,INT_MIN,INT_MAX,false);
         g.undo(x,y);
         if (value>bestScore) {
             bestScore=value;
