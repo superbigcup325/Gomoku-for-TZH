@@ -19,12 +19,7 @@ inline Player CurrentPlayer(const int currentTurn) {
 }
 
 class Gomoku {
-private:
-    std::vector<int8_t> graph;
-    // 0 none, 1 black, 2 white
-    int maxCount;
-    int currentCount;
-    int size;
+public:
     struct Pattern {
         int8_t count=1;
         int8_t openEnds=0;
@@ -58,6 +53,26 @@ private:
         inline bool isBlock3() const { return count == 3 && openEnds == 1; }
         inline bool isActive() const { return openEnds > 0; }
     };
+    Gomoku(const int size_value=38);
+    void set(const int x,const int y,const Player currentPlayer); // 落子
+    bool outOfRange(const int x,const int y) const; // 超出范围
+    bool isForbidden(const int x,const int y,Player player) const; // 判断禁手
+    bool validPosition(const int x,const int y,Player player); // 坐标是否合法
+    bool Win(const int x,const int y,const Player currentPlayer) const; // 判断是否有胜利
+    bool GameOver() const; // 判断是否结束 平局？
+    void show() const; // 显示棋盘
+    const std::vector<int8_t>& getGraph() const; // 获取棋盘状态
+    inline int getSize() const { return size; }
+    void undo(const int x,const int y); // 撤销
+    Player getPlayer(const int x,const int y) const; // 获取指定位置的子色
+    inline size_t pos(int x,int y) const noexcept { return static_cast<size_t>((x-1)*size+(y-1)); } // 位置转换
+    Pattern analyzeForm(const int x,int y,int dx,int dy,Player player) const;    
+private:
+    std::vector<int8_t> graph;
+    // 0 none, 1 black, 2 white
+    int maxCount;
+    int currentCount;
+    int size;
     struct Formation {
         Pattern patterns[4];
         Player player;
@@ -99,21 +114,6 @@ private:
         }
     };
     Gomoku::Formation analyzeAll(const int x,const int y,Player player) const;
-    Gomoku::Pattern analyzeForm(const int x,int y,int8_t dx,int8_t dy,Player player) const;
-public:
-    Gomoku(const int size_value=38);
-    void set(const int x,const int y,const Player currentPlayer); // 落子
-    bool outOfRange(const int x,const int y) const; // 超出范围
-    bool isForbidden(const int x,const int y,Player player) const; // 判断禁手
-    bool validPosition(const int x,const int y,Player player); // 坐标是否合法
-    bool Win(const int x,const int y,const Player currentPlayer) const; // 判断是否有胜利
-    bool GameOver() const; // 判断是否结束 平局？
-    void show() const; // 显示棋盘
-    const std::vector<int8_t>& getGraph() const; // 获取棋盘状态
-    inline int getSize() const { return size; }
-    void undo(const int x,const int y); // 撤销
-    Player getPlayer(const int x,const int y) const; // 获取指定位置的子色
-    inline size_t pos(int x,int y) const noexcept { return static_cast<size_t>((x-1)*size+(y-1)); } // 位置转换
 };
 
 Gomoku::Formation Gomoku::analyzeAll(const int x,const int y,Player player) const {
@@ -132,7 +132,7 @@ Gomoku::Formation Gomoku::analyzeAll(const int x,const int y,Player player) cons
     return formation;
 }
     
-Gomoku::Pattern Gomoku::analyzeForm(const int x,const int y,int8_t dx,int8_t dy,Player player) const {
+Gomoku::Pattern Gomoku::analyzeForm(const int x,const int y,int dx,int dy,Player player) const {
     Pattern pattern;
     // 正向
     int nx=x+dx,ny=y+dy;
