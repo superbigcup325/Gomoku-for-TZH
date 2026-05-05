@@ -28,21 +28,23 @@ int main () {
             g.set(x,y,p);
         }
         else {
-            std::cin>>x>>y;
-            while(!g.validPosition(x,y,p)) {
-                if (g.outOfRange(x,y)) std::cout<<"out of range"<<std::endl;
-                else if (g.getPlayer(x,y)!=NONE) std::cout<<"is placed"<<std::endl;
-                else if (g.isForbidden(x,y,p)) std::cout<<"forbiddened"<<std::endl;
-                std::cout<<"please try again: ";
-                std::cin>>x>>y;
-            }
-            g.set(x,y,p);
-            // auto move=minimax.getBestMove(g);
-            // x=move.first,y=move.second;
-            // if (x==-1||y==-1){
-            //     std::cout<<"cant find"<<std::endl;
+            // 由人工输入
+            // std::cin>>x>>y;
+            // while(!g.validPosition(x,y,p)) {
+            //     if (g.outOfRange(x,y)) std::cout<<"out of range"<<std::endl;
+            //     else if (g.getPlayer(x,y)!=NONE) std::cout<<"is placed"<<std::endl;
+            //     else if (g.isForbidden(x,y,p)) std::cout<<"forbiddened"<<std::endl;
+            //     std::cout<<"please try again: ";
+            //     std::cin>>x>>y;
             // }
             // g.set(x,y,p);
+            // ai博弈
+            auto move=minimax.getBestMove(g);
+            x=move.first,y=move.second;
+            if (x==-1||y==-1){
+                std::cout<<"cant find"<<std::endl;
+            }
+            g.set(x,y,p);
         }
         if (g.Win(x,y,p)){
             std::cout<<(p==BLACK? "BLACK":"WHITE")<<" win"<<std::endl;
