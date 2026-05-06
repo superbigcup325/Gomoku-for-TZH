@@ -1,5 +1,5 @@
-#ifndef GO_MINIMAX_H
-#define GO_MINIMAX_H
+#ifndef GOMOKU_MINIMAX_H
+#define GOMOKU_MINIMAX_H
 
 #include "board.h"
 #include <vector>
@@ -35,15 +35,17 @@ private:
     int evaluate(const Gomoku& g) const;
     std::vector<std::pair<int,int>> getCandidateMoves(const Gomoku& g) const;
     int alphaBeta(Gomoku& g,int depth,int alpha,int beta,bool isMaximizing);
+
 public:
     Minimax(const Player self_value,const int maxDepth_value,const double defendWeight_value=1.1);
     std::pair<int,int> getBestMove(Gomoku& g);
-    void setDepth(int depth_value) { maxDepth = depth_value; }
+    void setDepth(int depth_value) { maxDepth=depth_value; }
     int getNodesSearched() const { return nodeCount; }
     Player getSelf() const { return self; }
 };
 
-inline int Minimax::evaluatePiece(const Gomoku& g, int x, int y, Player player) const {
+// 单点棋型评估
+inline int Minimax::evaluatePiece(const Gomoku& g,int x,int y,Player player) const {
     if (g.getColor(x,y)!=player) return 0;
     int score=0;
     for (auto&[dx,dy]:Config::directions) {
@@ -55,10 +57,10 @@ inline int Minimax::evaluatePiece(const Gomoku& g, int x, int y, Player player) 
     return score;
 }
 
+// 空位潜力评估
 inline int Minimax::evaluateEmpty(const Gomoku& g,int x,int y) const {
     if (g.getColor(x,y)!=NONE) return 0;
     int score=0;
-
     for (auto& [dx,dy]:Config::directions) {
         score+=patternScore(g.analyzeForm(x,y,dx,dy,BLACK));
         score+=patternScore(g.analyzeForm(x,y,dx,dy,WHITE));
@@ -66,40 +68,65 @@ inline int Minimax::evaluateEmpty(const Gomoku& g,int x,int y) const {
     return score;
 }
 
+// 全盘评估（只评估有棋子的位置）
 inline int Minimax::evaluate(const Gomoku& g) const {
     int selfScore=0;
     int opponentScore=0;
     const int size=g.getSize();
+    std::vector<bool> evaluated(size*size,false);
 
     for (int x=1;x<=size;x++) {
         for (int y=1;y<=size;y++) {
             Player p=g.getColor(x,y);
+            if (p==NONE) continue;
+
+            // 避免重复评估同一串棋子
+            int idx=(x-1)*size+(y-1);
+            if (evaluated[idx]) continue;
+
+            // 标记整串棋子
             if (p==self) {
                 selfScore+=evaluatePiece(g,x,y,self);
-            }
-            else if (p==opponent) {
+            } else if (p==opponent) {
                 opponentScore+=evaluatePiece(g,x,y,opponent);
+            }
+
+            // 标记该棋子四个方向上已评估的棋子
+            evaluated[idx]=true;
+            for (auto&[dx,dy]:Config::directions) {
+                int nx=x+dx,ny=y+dy;
+                while (!g.outOfRange(nx,ny)&&g.getColor(nx,ny)==p) {
+                    evaluated[(nx-1)*size+(ny-1)]=true;
+                    nx+=dx;
+                    ny+=dy;
+                }
+                nx=x-dx,ny=y-dy;
+                while (!g.outOfRange(nx,ny)&&g.getColor(nx,ny)==p) {
+                    evaluated[(nx-1)*size+(ny-1)]=true;
+                    nx-=dx;
+                    ny-=dy;
+                }
             }
         }
     }
 
-    double val = static_cast<double>(selfScore) - static_cast<double>(opponentScore) * defendWeight;
+    double val=static_cast<double>(selfScore)-static_cast<double>(opponentScore)*defendWeight;
     return static_cast<int>(val);
 }
 
+// 获取候选移动
 inline std::vector<std::pair<int,int>> Minimax::getCandidateMoves(const Gomoku& g) const {
     int size=g.getSize();
     std::vector<bool> visited(size*size,false);
     std::vector<std::pair<int,int>> candidates;
 
-    // 收集所有已有棋子周围2格内的空位
     for (int x=1;x<=size;x++)
     for (int y=1;y<=size;y++)
     if (g.getColor(x,y)!=NONE)
     for (int dx=-2;dx<=2;dx++)
     for (int dy=-2;dy<=2;dy++) {
         int nx=x+dx,ny=y+dy;
-        if (!g.outOfRange(nx,ny) && g.getColor(nx,ny)==NONE) {
+        if (!g.outOfRange(nx,ny)&&g.getColor(nx,ny)==NONE) {
             int idx=(nx-1)*size+(ny-1);
             if (!visited[idx]) {
                 candidates.push_back({nx,ny});
@@ -108,25 +135,26 @@ inline std::vector<std::pair<int,int>> Minimax::getCandidateMoves(const Gomoku& 
         }
     }
 
-    // 如果棋盘为空，返回中心
     if (candidates.empty()) {
-        candidates.push_back({(size+1)/2, (size+1)/2});
+        candidates.push_back({(size+1)/2,(size+1)/2});
         return candidates;
     }
 
+    // 按空位潜力排序
     std::sort(candidates.begin(),candidates.end(),
         [&](const std::pair<int,int>& a,const std::pair<int,int>& b) {
             return evaluateEmpty(g,a.first,a.second)>evaluateEmpty(g,b.first,b.second);
         });
-    
-    // 限制数量
-    if (candidates.size()>15){
-        candidates.resize(15);   
+
+    // 限制候选数量
+    if (candidates.size()>15) {
+        candidates.resize(15);
     }
 
     return candidates;
 }
 
+// Alpha-Beta 搜索
 inline int Minimax::alphaBeta(Gomoku& g,int depth,int alpha,int beta,bool isMaximizing) {
     nodeCount++;
 
@@ -135,7 +163,7 @@ inline int Minimax::alphaBeta(Gomoku& g,int depth,int alpha,int beta,bool isMaxi
     auto moves=getCandidateMoves(g);
     if (moves.empty()) return 0;
 
-    if (isMaximizing){
+    if (isMaximizing) {
         int maxValue=INT_MIN;
         for (auto& [x,y]:moves) {
             if (!g.validPosition(x,y,self)) continue;
@@ -144,15 +172,14 @@ inline int Minimax::alphaBeta(Gomoku& g,int depth,int alpha,int beta,bool isMaxi
                 g.undo(x,y);
                 return 1000000+depth;
             }
-            int value=alphaBeta(g,depth-1,alpha,beta,!isMaximizing);
+            int value=alphaBeta(g,depth-1,alpha,beta,false);
             g.undo(x,y);
             maxValue=std::max(maxValue,value);
             alpha=std::max(alpha,value);
             if (beta<=alpha) break;
         }
         return maxValue;
-    }
-    else {
+    } else {
         int minValue=INT_MAX;
         for (auto& [x,y]:moves) {
             if (!g.validPosition(x,y,opponent)) continue;
@@ -161,7 +188,7 @@ inline int Minimax::alphaBeta(Gomoku& g,int depth,int alpha,int beta,bool isMaxi
                 g.undo(x,y);
                 return -(1000000+depth);
             }
-            int value=alphaBeta(g,depth-1,alpha,beta,!isMaximizing);
+            int value=alphaBeta(g,depth-1,alpha,beta,true);
             g.undo(x,y);
             minValue=std::min(minValue,value);
             beta=std::min(beta,value);
@@ -171,6 +198,7 @@ inline int Minimax::alphaBeta(Gomoku& g,int depth,int alpha,int beta,bool isMaxi
     }
 }
 
+// 构造函数
 inline Minimax::Minimax(const Player self_value,const int maxDepth_value,const double defendWeight_value):
     self(self_value),
     opponent(self_value==BLACK? WHITE:BLACK),
@@ -178,6 +206,7 @@ inline Minimax::Minimax(const Player self_value,const int maxDepth_value,const d
     nodeCount(0),
     defendWeight(defendWeight_value) {}
 
+// 获取最优移动
 inline std::pair<int,int> Minimax::getBestMove(Gomoku& g) {
     nodeCount=0;
     int bestScore=INT_MIN;
@@ -201,4 +230,4 @@ inline std::pair<int,int> Minimax::getBestMove(Gomoku& g) {
     return bestMove;
 }
 
-#endif //GO_MINIMAX_H
+#endif //GOMOKU_MINIMAX_H
