@@ -21,3 +21,4 @@ go.work
 *.swo
 main
 ver_minimax
+.claude/
