@@ -8,9 +8,11 @@ void show(int currentTurn,Player p) {
 }
 
 int main () {
-    Gomoku g(15);
+    Gomoku g(38);
     Minimax minimax(WHITE,4,1.12);
     int currentTurn=0;
+    int lastX=0,lastY=0;
+    Player lastPlayer=NONE;
     while (!g.GameOver()) {
         g.show();
         currentTurn++;
@@ -26,13 +28,14 @@ int main () {
             }
             std::cout<<"placed at ("<<x<<", "<<y<<")"<<std::endl;
             g.set(x,y,p);
+            lastX=x; lastY=y; lastPlayer=p;
         }
         else {
             // 由人工输入
             // std::cin>>x>>y;
             // while(!g.validPosition(x,y,p)) {
             //     if (g.outOfRange(x,y)) std::cout<<"out of range"<<std::endl;
-            //     else if (g.getPlayer(x,y)!=NONE) std::cout<<"is placed"<<std::endl;
+            //     else if (g.getColor(x,y)!=NONE) std::cout<<"is placed"<<std::endl;
             //     else if (g.isForbidden(x,y,p)) std::cout<<"forbiddened"<<std::endl;
             //     std::cout<<"please try again: ";
             //     std::cin>>x>>y;
@@ -45,12 +48,15 @@ int main () {
                 std::cout<<"cant find"<<std::endl;
             }
             g.set(x,y,p);
+            lastX=x; lastY=y; lastPlayer=p;
         }
         if (g.Win(x,y,p)){
             std::cout<<(p==BLACK? "BLACK":"WHITE")<<" win"<<std::endl;
-            g.show();
             break;
         }
+    }
+    if (g.GameOver() && lastPlayer!=NONE && !g.Win(lastX,lastY,lastPlayer)) {
+        std::cout<<"draw"<<std::endl;
     }
     return 0;
 }
