@@ -1,6 +1,15 @@
-#include "board.h"
-#include "mcts.h"
+#include "../include/board.h"
+#include "../include/mcts.h"
 #include <iostream>
+#include <cstdlib>
+
+void clearScreen() {
+    #ifdef _WIN32
+        system("cls");
+    #else
+        system("clear");
+    #endif
+}
 
 void show(int currentTurn, Player p) {
     std::cout << "current turn is " << currentTurn << std::endl;
@@ -13,7 +22,6 @@ int main() {
     int currentTurn = 0;
 
     while (!g.GameOver()) {
-        g.show();
         currentTurn++;
         int x, y;
         Player p = CurrentPlayer(currentTurn);
@@ -30,18 +38,6 @@ int main() {
             g.set(x, y, p);
         }
         else {
-            // 由人工输入
-            // std::cin >> x >> y;
-            // while (!g.validPosition(x, y, p)) {
-            //     if (g.outOfRange(x, y)) std::cout << "out of range" << std::endl;
-            //     else if (g.getColor(x, y) != NONE) std::cout << "already placed" << std::endl;
-            //     else if (g.isForbidden(x, y, p)) std::cout << "forbidden" << std::endl;
-            //     std::cout << "please try again: ";
-            //     std::cin >> x >> y;
-            // }
-            // g.set(x, y, p);
-
-            // AI 博弈
             auto move = mcts.getBestMove(g);
             x = move.first, y = move.second;
             if (x == -1 || y == -1) {
@@ -52,9 +48,11 @@ int main() {
             g.set(x, y, p);
         }
 
+        clearScreen();
+        g.show();
+
         if (g.Win(x, y, p)) {
             std::cout << (p == BLACK ? "BLACK" : "WHITE") << " win" << std::endl;
-            g.show();
             break;
         }
     }

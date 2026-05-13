@@ -1,6 +1,6 @@
-#include "board.h"
-#include "minimax.h"
-#include "mcts.h"
+#include "../include/board.h"
+#include "../include/minimax.h"
+#include "../include/mcts.h"
 #include <iostream>
 #include <chrono>
 #include <string>
@@ -85,6 +85,8 @@ int main(int argc, char* argv[]) {
         lastX = x;
         lastY = y;
         lastPlayer = p;
+
+        g.show();
 
         if (g.Win(x, y, p)) {
             std::cout << (p == minimaxPlayer ? "minimax" : "mcts") << " win" << std::endl;

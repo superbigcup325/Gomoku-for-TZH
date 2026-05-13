@@ -1,5 +1,5 @@
-#include"board.h"
-#include"minimax.h"
+#include"../include/board.h"
+#include"../include/minimax.h"
 #include<iostream>
 
 void show(int currentTurn,Player p) {
@@ -9,8 +9,8 @@ void show(int currentTurn,Player p) {
 
 int main () {
     Gomoku g(15);
-    // Minimax white(WHITE,4,1.12);
-    Minimax black(BLACK,4,1.12);
+    // Minimax ai(WHITE,4,1.2);
+    Minimax ai(BLACK,4,1.12);
     int currentTurn=0;
     int lastX=0,lastY=0;
     Player lastPlayer=NONE;
@@ -20,8 +20,8 @@ int main () {
         int x,y;
         Player p=CurrentPlayer(currentTurn);
         show(currentTurn,p);
-        if (p==black.getSelf()){
-            auto move=black.getBestMove(g);
+        if (p==ai.getSelf()){
+            auto move=ai.getBestMove(g);
             x=move.first,y=move.second;
             if (x==-1||y==-1){
                 std::cout<<"cant find"<<std::endl;

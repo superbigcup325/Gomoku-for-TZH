@@ -5,20 +5,36 @@
 *.so
 *.dylib
 
+# Build output directory
+bin/
+
 # Test binary
 *.test
 
 # Output
 *.out
 
-# Go workspace file
-go.work
+# Python
+api/venv/
+__pycache__/
+*.pyc
 
 # IDE
 .idea/
 .vscode/
 *.swp
 *.swo
+.claude/
+.trae/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Old build artifacts (legacy)
 main
 ver_minimax
-.claude/
+ver_api
+gomoku
+gomoku_vs
+gomoku_mcts
