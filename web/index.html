@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>五子棋 - Gomoku AI</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <!-- 顶部标题栏 -->
+        <header class="header">
+            <h1>🎮 五子棋 AI 对战系统</h1>
+            <p>基于 Minimax & MCTS 算法的完整实现</p>
+        </header>
+
+        <!-- 主要内容区 -->
+        <main class="main-content">
+            <!-- 左侧：控制面板 -->
+            <aside class="control-panel">
+                <div class="panel-section">
+                    <h3>⚙️ 游戏设置</h3>
+
+                    <div class="control-group">
+                        <label for="boardSize">棋盘大小：</label>
+                        <input type="number" id="boardSize" value="15" min="5" max="38" step="1">
+                        <span class="hint">范围: 5-38</span>
+                    </div>
+
+                    <div class="control-group">
+                        <label for="gameMode">游戏模式：</label>
+                        <select id="gameMode">
+                            <option value="pvp">双人对战 🎯</option>
+                            <option value="pve" selected>人机对战 🤖</option>
+                        </select>
+                    </div>
+
+                    <div class="control-group" id="aiSettings">
+                        <label for="aiAlgorithm">AI 算法：</label>
+                        <select id="aiAlgorithm">
+                            <option value="minimax" selected>Minimax (Alpha-Beta)</option>
+                            <option value="mcts">MCTS (蒙特卡洛)</option>
+                        </select>
+                    </div>
+
+                    <div class="control-group" id="engineSettings">
+                        <label for="aiEngine">AI 引擎：</label>
+                        <select id="aiEngine">
+                            <option value="js" selected>JavaScript (本地)</option>
+                            <option value="cpp">C++ (需启动API服务)</option>
+                        </select>
+                        <span class="hint">C++引擎需要先运行 start.bat</span>
+                    </div>
+
+                    <div class="control-group" id="minimaxSettings">
+                        <label for="searchDepth">搜索深度：</label>
+                        <input type="number" id="searchDepth" value="4" min="1" max="8" step="1">
+                        <span class="hint">越大越强但越慢</span>
+                    </div>
+
+                    <div class="control-group" id="mctsSettings" style="display: none;">
+                        <label for="iterations">模拟次数：</label>
+                        <input type="number" id="iterations" value="1000" min="100" max="10000" step="100">
+                        <span class="hint">越多越强但越慢</span>
+                    </div>
+
+                    <div class="control-group">
+                        <label for="playerColor">执子颜色：</label>
+                        <select id="playerColor">
+                            <option value="black" selected>⚫ 黑棋（先手）</option>
+                            <option value="white">⚪ 白棋（后手）</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="panel-section">
+                    <h3>🎮 游戏控制</h3>
+                    <button id="startBtn" class="btn btn-primary">🔄 开始新游戏</button>
+                    <button id="undoBtn" class="btn btn-secondary" disabled>↩️ 悔棋</button>
+                </div>
+
+                <div class="panel-section">
+                    <h3>📊 游戏状态</h3>
+                    <div class="status-display">
+                        <div class="status-item">
+                            <span class="label">当前回合：</span>
+                            <span id="currentTurn" class="value">⚫ 黑棋</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="label">总步数：</span>
+                            <span id="moveCount" class="value">0</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="label">AI搜索节点：</span>
+                            <span id="nodeCount" class="value">0</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="label">思考时间：</span>
+                            <span id="thinkTime" class="value">0ms</span>
+                        </div>
+                    </div>
+                    <div id="gameMessage" class="game-message"></div>
+                </div>
+            </aside>
+
+            <!-- 右侧：棋盘区域 -->
+            <section class="board-section">
+                <canvas id="gameBoard"></canvas>
+            </section>
+        </main>
+
+        <!-- 底部信息 -->
+        <footer class="footer">
+            <p>📖 支持禁手规则 | 可配置棋盘大小 | 完整AI算法移植自C++版本</p>
+        </footer>
+    </div>
+
+    <!-- JavaScript 模块加载 -->
+    <script src="js/pattern.js"></script>
+    <script src="js/board.js"></script>
+    <script src="js/minimax.js"></script>
+    <script src="js/mcts.js"></script>
+    <script src="js/game.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>
