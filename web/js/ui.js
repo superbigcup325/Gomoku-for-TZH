@@ -531,6 +531,66 @@ class GomokuUI {
         }
     }
 
+    renderMoveHistory(moveHistory) {
+        const historyListEl = document.getElementById('moveHistoryList');
+        
+        if (!historyListEl) return;
+        
+        if (!moveHistory || moveHistory.length === 0) {
+            historyListEl.innerHTML = '<div class="history-empty">暂无落子记录</div>';
+            return;
+        }
+
+        let html = '';
+        
+        // 从最新到最旧显示（最新的在顶部）
+        for (let i = moveHistory.length - 1; i >= Math.max(0, moveHistory.length - 20); i--) {
+            const move = moveHistory[i];
+            const stepNum = i + 1;
+            const playerIcon = move.player === Player.BLACK ? '⚫' : '⚪';
+            const playerClass = move.player === Player.BLACK ? 'black-move' : 'white-move';
+            
+            // 转换坐标为棋盘标记（如 H8）
+            const colLetter = String.fromCharCode(65 + move.x); // A-O
+            const rowNumber = this.boardSize - move.y; // 从底部开始计数
+            
+            html += `
+                <div class="move-item ${playerClass}" data-step="${stepNum}" title="第${stepNum}步: ${playerIcon} ${colLetter}${rowNumber} (${move.x}, ${move.y})">
+                    <span class="move-number">${stepNum}.</span>
+                    <span class="move-icon">${playerIcon}</span>
+                    <span class="move-position">${colLetter}${rowNumber}</span>
+                </div>
+            `;
+        }
+
+        if (moveHistory.length > 20) {
+            html += `<div class="history-more">... 还有 ${moveHistory.length - 20} 步记录</div>`;
+        }
+
+        historyListEl.innerHTML = html;
+
+        // 添加点击事件：高亮显示该步骤的落子位置
+        const moveItems = historyListEl.querySelectorAll('.move-item');
+        moveItems.forEach(item => {
+            item.addEventListener('click', () => {
+                const stepNum = parseInt(item.getAttribute('data-step'));
+                const move = moveHistory[stepNum - 1];
+                
+                if (move) {
+                    // 高亮显示这个位置
+                    this.setLastMove(move.x, move.y);
+                    this.render();
+                    
+                    // 高亮历史列表中的该项
+                    moveItems.forEach(el => el.classList.remove('active'));
+                    item.classList.add('active');
+                    
+                    console.log(`查看第 ${stepNum} 步: ${move.player === Player.BLACK ? '黑' : '白'} (${move.x}, ${move.y})`);
+                }
+            });
+        });
+    }
+
     render(gomoku = null) {
         if (gomoku) {
             this.currentGomoku = gomoku;

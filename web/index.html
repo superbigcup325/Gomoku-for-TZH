@@ -99,8 +99,28 @@
                             <span id="thinkTime" class="value">0ms</span>
                         </div>
                     </div>
-                    <div id="gameMessage" class="game-message"></div>
                 </div>
+
+                <div class="panel-section">
+                    <h3>📜 历史步数</h3>
+                    <div class="history-controls">
+                        <button id="undoBtn" class="btn btn-small btn-secondary" disabled title="悔棋（撤销上一步）">↩️ 悔棋</button>
+                        <button id="resetHistoryBtn" class="btn btn-small btn-warning" title="清空历史记录">🗑️ 清空</button>
+                    </div>
+                    <div id="moveHistoryList" class="move-history-list">
+                        <div class="history-empty">暂无落子记录</div>
+                    </div>
+                    <div class="history-stats" id="historyStats" style="display: none;">
+                        <div class="stat-row">
+                            <span class="stat-label">⚫ 黑棋：</span>
+                            <span id="blackMoveCount" class="stat-value">0</span>
+                            <span class="stat-label">⚪ 白棋：</span>
+                            <span id="whiteMoveCount" class="stat-value">0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="gameMessage" class="game-message"></div>
             </aside>
 
             <!-- 右侧：棋盘区域 -->

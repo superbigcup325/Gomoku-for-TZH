@@ -274,3 +274,138 @@ body {
 @keyframes spin {
     to { transform: rotate(360deg); }
 }
+
+/* ===== 历史步数记录样式 ===== */
+.history-controls {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.btn-small {
+    padding: 6px 14px;
+    font-size: 13px;
+}
+
+.move-history-list {
+    max-height: 280px;
+    overflow-y: auto;
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 10px;
+    border: 1px solid #dee2e6;
+}
+
+.move-history-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.move-history-list::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+}
+
+.move-history-list::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 3px;
+}
+
+.move-history-list::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
+
+.history-empty {
+    text-align: center;
+    color: #999;
+    padding: 30px 10px;
+    font-size: 14px;
+}
+
+.move-item {
+    display: flex;
+    align-items: center;
+    padding: 8px 10px;
+    margin-bottom: 4px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 13px;
+    user-select: none;
+}
+
+.move-item:hover {
+    transform: translateX(4px);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.move-item.active {
+    background-color: #fff3cd;
+    border-left: 3px solid #ffc107;
+    font-weight: 600;
+}
+
+.black-move {
+    background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+    border-left: 3px solid #333;
+}
+
+.white-move {
+    background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+    border-left: 3px solid #ddd;
+}
+
+.move-number {
+    color: #666;
+    min-width: 32px;
+    font-weight: 500;
+}
+
+.move-icon {
+    font-size: 16px;
+    margin-right: 8px;
+}
+
+.move-position {
+    color: #495057;
+    font-weight: 600;
+    font-family: 'Courier New', monospace;
+    letter-spacing: 1px;
+}
+
+.history-more {
+    text-align: center;
+    color: #999;
+    padding: 10px;
+    font-size: 12px;
+    font-style: italic;
+    border-top: 1px dashed #dee2e6;
+    margin-top: 8px;
+}
+
+.history-stats {
+    margin-top: 12px;
+    padding: 10px;
+    background: linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%);
+    border-radius: 6px;
+    border: 1px solid #bbdefb;
+}
+
+.stat-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 15px;
+}
+
+.stat-label {
+    font-size: 13px;
+    color: #555;
+    font-weight: 500;
+}
+
+.stat-value {
+    font-weight: bold;
+    font-size: 16px;
+    color: #1976d2;
+}
+

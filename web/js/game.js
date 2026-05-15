@@ -84,6 +84,7 @@ class GomokuGame {
             this.ui.clearLastMove();
             this.ui.render(this.gomoku);
             this.updateStatus();
+            this.updateMoveHistory();
             this.updateButtons();
 
             const endTime = performance.now();
@@ -156,6 +157,7 @@ class GomokuGame {
 
         this.currentTurn++;
         this.updateStatus();
+        this.updateMoveHistory();
 
         return true;
     }
@@ -403,9 +405,30 @@ class GomokuGame {
         this.gameOver = false;
         this.ui.render(this.gomoku);
         this.updateStatus();
+        this.updateMoveHistory();
         this.showMessage('已悔棋', 'info');
 
         console.log(`悔棋: 撤销了 ${stepsToUndo} 步`);
+    }
+
+    updateMoveHistory() {
+        this.ui.renderMoveHistory(this.moveHistory);
+        
+        // 更新统计信息
+        const historyStats = document.getElementById('historyStats');
+        const blackCount = document.getElementById('blackMoveCount');
+        const whiteCount = document.getElementById('whiteMoveCount');
+        
+        if (this.moveHistory.length > 0) {
+            const blackMoves = this.moveHistory.filter(m => m.player === Player.BLACK).length;
+            const whiteMoves = this.moveHistory.filter(m => m.player === Player.WHITE).length;
+            
+            blackCount.textContent = blackMoves.toString();
+            whiteCount.textContent = whiteMoves.toString();
+            historyStats.style.display = 'block';
+        } else {
+            historyStats.style.display = 'none';
+        }
     }
 
     getCurrentPlayer() {

@@ -45,6 +45,16 @@ function bindControlEvents(game) {
         game.undo();
     });
 
+    // 清空历史按钮
+    const resetHistoryBtn = document.getElementById('resetHistoryBtn');
+    if (resetHistoryBtn) {
+        resetHistoryBtn.addEventListener('click', function() {
+            if (confirm('确定要清空历史记录吗？这将重新开始游戏。')) {
+                game.startNewGame();
+            }
+        });
+    }
+
     // 游戏模式切换
     const gameModeSelect = document.getElementById('gameMode');
     gameModeSelect.addEventListener('change', function() {
