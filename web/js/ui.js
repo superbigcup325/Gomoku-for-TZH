@@ -8,7 +8,14 @@ class GomokuUI {
         this.hoverPos = null;
         this.lastMove = null;
         this.boardSize = 15;
-        this.currentGomoku = null; // 保存当前棋盘状态
+        this.currentGomoku = null;
+
+        // 渲染性能优化：缓存和状态跟踪
+        this.renderCache = null;          // 缓存静态层（背景+网格）
+        this.lastRenderState = null;      // 上次渲染的状态哈希
+        this.isLargeBoard = false;        // 大规格标记
+        this.maxDisplaySize = 700;        // 最大显示尺寸（像素）
+        this.scaleFactor = 1.0;           // 缩放因子
 
         this.setupCanvas();
         this.bindEvents();
@@ -23,7 +30,7 @@ class GomokuUI {
     setBoardSize(size) {
         this.boardSize = size;
 
-        // 根据棋盘大小动态调整单元格大小
+        // 根据棋盘大小动态调整单元格大小（优化：支持更大规格）
         if (size <= 10) {
             this.cellSize = 50;
             this.pieceRadius = 22;
@@ -36,13 +43,39 @@ class GomokuUI {
         } else if (size <= 25) {
             this.cellSize = 28;
             this.pieceRadius = 12;
+        } else if (size <= 30) {
+            this.cellSize = 24;
+            this.pieceRadius = 10;
         } else {
-            this.cellSize = 22;
-            this.pieceRadius = 9;
+            this.cellSize = 20;
+            this.pieceRadius = 8;
         }
 
-        this.padding = Math.max(25, this.cellSize);
+        this.padding = Math.max(20, Math.floor(this.cellSize * 0.7));
         this.setupCanvas();
+
+        // 大规格标记和缩放计算
+        this.isLargeBoard = size > 19;
+        
+        // 计算实际Canvas尺寸
+        const actualSize = this.padding * 2 + this.cellSize * (this.boardSize - 1);
+        
+        // 如果超出最大显示尺寸，设置CSS缩放
+        if (actualSize > this.maxDisplaySize) {
+            this.scaleFactor = this.maxDisplaySize / actualSize;
+            this.canvas.style.width = `${this.maxDisplaySize}px`;
+            this.canvas.style.height = `${this.maxDisplaySize}px`;
+        } else {
+            this.scaleFactor = 1.0;
+            this.canvas.style.width = `${actualSize}px`;
+            this.canvas.style.height = `${actualSize}px`;
+        }
+
+        // 清除缓存（规格变化后需要重绘）
+        this.renderCache = null;
+        this.lastRenderState = null;
+
+        console.log(`📐 棋盘: ${size}×${size}, 单元格: ${this.cellSize}px, Canvas: ${actualSize}px, 缩放: ${(this.scaleFactor * 100).toFixed(0)}%`);
     }
 
     bindEvents() {
@@ -50,9 +83,9 @@ class GomokuUI {
         this.canvas.addEventListener('mouseleave', () => this.handleMouseLeave());
         this.canvas.addEventListener('click', (e) => this.handleClick(e));
 
-        // 节流：限制鼠标移动事件频率（每50ms最多触发一次）
+        // 节流：限制鼠标移动事件频率（大规格棋盘需要更长间隔）
         this.lastMouseMoveTime = 0;
-        this.mouseMoveThrottle = 50;  // ms
+        this.mouseMoveThrottle = 50;  // ms（默认值）
     }
 
     getMousePos(e) {
@@ -85,9 +118,12 @@ class GomokuUI {
     }
 
     handleMouseMove(e) {
+        // 动态节流：大规格棋盘使用更长间隔
+        const dynamicThrottle = this.isLargeBoard ? 100 : 50;
+        
         // 节流：限制渲染频率
         const now = performance.now();
-        if (now - this.lastMouseMoveTime < this.mouseMoveThrottle) {
+        if (now - this.lastMouseMoveTime < dynamicThrottle) {
             return;
         }
         this.lastMouseMoveTime = now;
@@ -143,44 +179,41 @@ class GomokuUI {
     drawBoard(gomoku) {
         const renderStart = performance.now();
 
+        // 生成当前状态哈希（用于缓存比对）
+        const currentState = this.generateStateHash(gomoku);
+        
+        // 检查是否需要完全重绘静态层（只在规格变化时重绘）
+        if (!this.renderCache || this.needFullRedraw(currentState)) {
+            const staticCanvas = this.drawStaticLayer();
+            // 合并缓存：保留canvas引用 + 更新状态信息
+            this.renderCache = {
+                canvas: staticCanvas,
+                ...currentState,
+                hasStatic: true
+            };
+        }
+
         // 清空画布
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
-        // 绘制棋盘背景
-        this.ctx.fillStyle = '#DEB887';
-        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-
-        // 绘制网格线（优化：批量绘制）
-        this.ctx.strokeStyle = '#000000';
-        this.ctx.lineWidth = 1;
-        this.ctx.beginPath();
-
-        for (let i = 0; i < this.boardSize; i++) {
-            const x = this.padding + i * this.cellSize;
-            const y = this.padding + i * this.cellSize;
-
-            // 垂直线
-            this.ctx.moveTo(x, this.padding);
-            this.ctx.lineTo(x, this.padding + (this.boardSize - 1) * this.cellSize);
-
-            // 水平线
-            this.ctx.moveTo(this.padding, y);
-            this.ctx.lineTo(this.padding + (this.boardSize - 1) * this.cellSize, y);
+        // 绘制缓存的静态层（背景+网格+星位）
+        if (this.renderCache && this.renderCache.canvas) {
+            this.ctx.drawImage(this.renderCache.canvas, 0, 0);
+        } else {
+            // 缓存失败时的降级方案：直接绘制
+            console.warn('⚠️ 静态层缓存不可用，使用降级渲染');
+            this.drawFallbackBackground();
         }
-        this.ctx.stroke();
 
-        // 绘制星位（天元和星）
-        this.drawStarPoints();
-
-        // 绘制棋子
+        // 绘制棋子（优化：只绘制非空位置）
         if (gomoku) {
-            for (let x = 1; x <= this.boardSize; x++) {
-                for (let y = 1; y <= this.boardSize; y++) {
-                    const color = gomoku.getColor(x, y);
-                    if (color !== Player.NONE) {
-                        this.drawPiece(x, y, color);
-                    }
-                }
+            const totalCells = this.boardSize * this.boardSize;
+            
+            // 大规格棋盘：使用简化渲染模式
+            if (this.isLargeBoard || totalCells > 400) {
+                this.drawPiecesOptimized(gomoku);
+            } else {
+                this.drawPiecesNormal(gomoku);
             }
         }
 
@@ -196,22 +229,159 @@ class GomokuUI {
 
         const renderTime = performance.now() - renderStart;
         if (renderTime > 50) {  // 只在渲染慢时记录
-            console.log(`⚠️ 棋盘渲染耗时: ${Math.round(renderTime)}ms`);
+            console.log(`⚠️ 棋盘渲染耗时: ${Math.round(renderTime)}ms (${this.boardSize}×${this.boardSize})`);
+        }
+    }
+
+    generateStateHash(gomoku) {
+        return {
+            boardSize: this.boardSize,
+            pieceCount: gomoku ? gomoku.getCurrentCount() : 0,
+            lastMove: this.lastMove ? `${this.lastMove.x},${this.lastMove.y}` : null,
+            hoverPos: this.hoverPos ? `${this.hoverPos.x},${this.hoverPos.y}` : null
+        };
+    }
+
+    needFullRedraw(newState) {
+        if (!this.lastRenderState) return true;
+        
+        // 只在棋盘大小变化时重绘静态层
+        return this.lastRenderState.boardSize !== newState.boardSize;
+    }
+
+    drawStaticLayer() {
+        // 创建离屏Canvas用于缓存静态层
+        const offscreen = document.createElement('canvas');
+        offscreen.width = this.canvas.width;
+        offscreen.height = this.canvas.height;
+        const ctx = offscreen.getContext('2d');
+
+        // 绘制背景
+        ctx.fillStyle = '#DEB887';
+        ctx.fillRect(0, 0, offscreen.width, offscreen.height);
+
+        // 绘制网格线（批量绘制）
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+
+        for (let i = 0; i < this.boardSize; i++) {
+            const x = this.padding + i * this.cellSize;
+            const y = this.padding + i * this.cellSize;
+
+            // 垂直线
+            ctx.moveTo(x, this.padding);
+            ctx.lineTo(x, this.padding + (this.boardSize - 1) * this.cellSize);
+
+            // 水平线
+            ctx.moveTo(this.padding, y);
+            ctx.lineTo(this.padding + (this.boardSize - 1) * this.cellSize, y);
+        }
+        ctx.stroke();
+
+        // 绘制星位
+        this.drawStarPointsToContext(ctx);
+
+        // 返回离屏Canvas（由调用者管理缓存）
+        return offscreen;
+    }
+
+    drawFallbackBackground() {
+        // 降级渲染：当缓存不可用时直接绘制背景
+        this.ctx.fillStyle = '#DEB887';
+        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+        // 绘制网格线
+        this.ctx.strokeStyle = '#000000';
+        this.ctx.lineWidth = 1;
+        this.ctx.beginPath();
+
+        for (let i = 0; i < this.boardSize; i++) {
+            const x = this.padding + i * this.cellSize;
+            const y = this.padding + i * this.cellSize;
+
+            this.ctx.moveTo(x, this.padding);
+            this.ctx.lineTo(x, this.padding + (this.boardSize - 1) * this.cellSize);
+
+            this.ctx.moveTo(this.padding, y);
+            this.ctx.lineTo(this.padding + (this.boardSize - 1) * this.cellSize, y);
+        }
+        this.ctx.stroke();
+
+        // 绘制星位
+        this.drawStarPoints();
+    }
+
+    drawPiecesNormal(gomoku) {
+        for (let x = 1; x <= this.boardSize; x++) {
+            for (let y = 1; y <= this.boardSize; y++) {
+                const color = gomoku.getColor(x, y);
+                if (color !== Player.NONE) {
+                    this.drawPiece(x, y, color);
+                }
+            }
+        }
+    }
+
+    drawPiecesOptimized(gomoku) {
+        // 大规格优化：使用简化的棋子绘制（无阴影、无渐变）
+        const size = gomoku.getSize();
+        
+        for (let x = 1; x <= size; x++) {
+            for (let y = 1; y <= size; y++) {
+                const color = gomoku.getColor(x, y);
+                if (color !== Player.NONE) {
+                    this.drawPieceSimple(x, y, color);
+                }
+            }
+        }
+    }
+
+    drawPieceSimple(x, y, player) {
+        const { px, py } = this.boardPosToPixel(x, y);
+        const radius = Math.max(3, this.pieceRadius);  // 最小半径保护
+
+        this.ctx.beginPath();
+        this.ctx.arc(px, py, radius, 0, Math.PI * 2);
+
+        // 简化颜色：无渐变，纯色填充
+        if (player === Player.BLACK) {
+            this.ctx.fillStyle = '#000000';
+        } else {
+            this.ctx.fillStyle = '#FFFFFF';
+            this.ctx.strokeStyle = '#999999';
+            this.ctx.lineWidth = 1;
+        }
+
+        this.ctx.fill();
+        
+        // 白子加边框
+        if (player === Player.WHITE) {
+            this.ctx.stroke();
         }
     }
 
     drawStarPoints() {
-        this.ctx.fillStyle = '#000000';
+        this.drawStarPointsToContext(this.ctx);
+    }
+
+    drawStarPointsToContext(ctx) {
+        ctx.fillStyle = '#000000';
 
         const center = Math.floor((this.boardSize + 1) / 2);
         const points = [];
+        
+        // 预计算星位偏移量（函数级别，避免作用域错误）
+        let offset = 0;
+        if (this.boardSize >= 13) {
+            offset = Math.floor((this.boardSize - 1) / 4);
+        }
 
         if (this.boardSize >= 9) {
             points.push([center, center]); // 天元
         }
 
         if (this.boardSize >= 13) {
-            const offset = Math.floor((this.boardSize - 1) / 4);
             points.push(
                 [offset + 1, offset + 1],
                 [offset + 1, this.boardSize - offset],
@@ -232,9 +402,9 @@ class GomokuUI {
 
         for (const [x, y] of points) {
             const { px, py } = this.boardPosToPixel(x, y);
-            this.ctx.beginPath();
-            this.ctx.arc(px, py, 4, 0, Math.PI * 2);
-            this.ctx.fill();
+            ctx.beginPath();
+            ctx.arc(px, py, 4, 0, Math.PI * 2);
+            ctx.fill();
         }
     }
 
