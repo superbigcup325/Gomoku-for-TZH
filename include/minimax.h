@@ -15,9 +15,6 @@ private:
     int maxDepth;
     int nodeCount;
     const double defendWeight;
-    const double openingWeight=0.8;
-    const double middleWeight=1.0;
-    const double endgameWeight=1.2;
     double attackCoeff;
     double defenseCoeff;
 
@@ -48,14 +45,6 @@ private:
         return (maxDist-dist+1)*5;
     }
 
-    inline double getStageWeight(const Gomoku& g) const {
-        int totalCells=g.getSize()*g.getSize();
-        int placed=g.getCurrentCount();
-        if (placed<10) return openingWeight;
-        if (placed<totalCells*0.6) return middleWeight;
-        return endgameWeight;
-    }
-
     int evaluatePiece(const Gomoku& g,int x,int y,Player p);
     int evaluateEmpty(const Gomoku& g,int x,int y);
     int evaluate(const Gomoku& g);
@@ -77,8 +66,8 @@ inline int Minimax::evaluatePiece(const Gomoku& g,int x,int y,Player player) {
         Gomoku::Pattern pattern=g.analyzeForm(x,y,dx,dy,player);
         score+=basePatternScore(pattern);
     }
-    double stageWeight=getStageWeight(g);
-    if (stageWeight<1.0) score+=positionScore(g,x,y);
+    
+    score+=positionScore(g,x,y);
     return score;
 }
 
@@ -103,7 +92,7 @@ inline int Minimax::evaluate(const Gomoku& g) {
     int opponentScore=0;
     const int size=g.getSize();
     std::vector<bool> evaluated(size*size,false);
-    double stageWeight=getStageWeight(g);
+    
     for (int x=1;x<=size;x++){
         for (int y=1;y<=size;y++){
             Player p=g.getColor(x,y);
@@ -112,10 +101,10 @@ inline int Minimax::evaluate(const Gomoku& g) {
             if (evaluated[idx]) continue;
             if (p==self){
                 int pieceScore=evaluatePiece(g,x,y,self);
-                selfScore+=static_cast<int>(pieceScore*attackCoeff*stageWeight);
+                selfScore+=static_cast<int>(pieceScore*attackCoeff);
             } else if (p==opponent){
                 int pieceScore=evaluatePiece(g,x,y,opponent);
-                opponentScore+=static_cast<int>(pieceScore*defenseCoeff*stageWeight);
+                opponentScore+=static_cast<int>(pieceScore*defenseCoeff);
             }
             evaluated[idx]=true;
             for (auto& [dx,dy]:Config::directions){

@@ -5,9 +5,6 @@ class Minimax {
         this.maxDepth = maxDepthValue;
         this.nodeCount = 0;
         this.defendWeight = defendWeightValue;
-        this.openingWeight = 0.8;
-        this.middleWeight = 1.0;
-        this.endgameWeight = 1.2;
 
         if (this.self === Player.BLACK) {
             this.attackCoeff = 1.2;
@@ -56,15 +53,6 @@ class Minimax {
         return (maxDist - dist + 1) * 5;
     }
 
-    getStageWeight(g) {
-        const totalCells = g.getSize() * g.getSize();
-        const placed = g.getCurrentCount();
-
-        if (placed < 10) return this.openingWeight;
-        if (placed < totalCells * 0.6) return this.middleWeight;
-        return this.endgameWeight;
-    }
-
     evaluatePiece(g, x, y, player) {
         if (g.getColor(x, y) !== player) return 0;
 
@@ -74,8 +62,7 @@ class Minimax {
             score += this.basePatternScore(pattern);
         }
 
-        const stageWeight = this.getStageWeight(g);
-        if (stageWeight < 1.0) score += this.positionScore(g, x, y);
+        score += this.positionScore(g, x, y);
 
         return score;
     }
@@ -102,7 +89,6 @@ class Minimax {
         let opponentScore = 0;
         const size = g.getSize();
         const evaluated = new Array(size * size).fill(false);
-        const stageWeight = this.getStageWeight(g);
 
         for (let x = 1; x <= size; x++) {
             for (let y = 1; y <= size; y++) {
@@ -114,10 +100,10 @@ class Minimax {
 
                 if (p === this.self) {
                     const pieceScore = this.evaluatePiece(g, x, y, this.self);
-                    selfScore += Math.floor(pieceScore * this.attackCoeff * stageWeight);
+                    selfScore += Math.floor(pieceScore * this.attackCoeff);
                 } else if (p === this.opponent) {
                     const pieceScore = this.evaluatePiece(g, x, y, this.opponent);
-                    opponentScore += Math.floor(pieceScore * this.defenseCoeff * stageWeight);
+                    opponentScore += Math.floor(pieceScore * this.defenseCoeff);
                 }
 
                 evaluated[idx] = true;
@@ -149,11 +135,15 @@ class Minimax {
         const visited = new Array(size * size).fill(false);
         const candidates = [];
 
+        // 根据棋盘大小动态调整搜索范围和候选点上限
+        const searchRadius = size > 25 ? 1 : 2;  // 大规格缩小搜索半径
+        const maxCandidates = size > 19 ? 15 : 20;  // 大规格减少候选点
+
         for (let x = 1; x <= size; x++) {
             for (let y = 1; y <= size; y++) {
                 if (g.getColor(x, y) !== Player.NONE) {
-                    for (let dx = -2; dx <= 2; dx++) {
-                        for (let dy = -2; dy <= 2; dy++) {
+                    for (let dx = -searchRadius; dx <= searchRadius; dx++) {
+                        for (let dy = -searchRadius; dy <= searchRadius; dy++) {
                             const nx = x + dx, ny = y + dy;
                             if (!g.outOfRange(nx, ny) && g.getColor(nx, ny) === Player.NONE) {
                                 const idx = (nx - 1) * size + (ny - 1);
@@ -224,14 +214,14 @@ class Minimax {
             }
         }
         
-        // 再添加其他候选点（最多20个）
+        // 再添加其他候选点（使用动态上限）
         for (const pt of candidates) {
             const key = `${pt[0]},${pt[1]}`;
             if (!added.has(key)) {
                 result.push(pt);
                 added.add(key);
             }
-            if (result.length >= 20) break;
+            if (result.length >= maxCandidates) break;
         }
         
         return result;
