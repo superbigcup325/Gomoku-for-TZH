@@ -141,23 +141,64 @@ class GomokuGame {
     }
 
     makeMove(x, y, player) {
-        // 验证位置有效性
-        if (!this.gomoku.validPosition(x, y, player)) {
-            this.showMessage('无效位置或禁手！', 'error');
+        const validation = this.gomoku.validPosition(x, y, player);
+
+        if (!validation.valid) {
+            this.handleInvalidMove(x, y, player, validation);
             return false;
         }
 
-        // 落子
         this.gomoku.set(x, y, player);
         this.moveHistory.push({ x, y, player });
         this.ui.setLastMove(x, y);
         this.ui.render(this.gomoku);
+        this.ui.clearForbiddenHighlight();
 
-        // 切换回合
         this.currentTurn++;
         this.updateStatus();
 
         return true;
+    }
+
+    handleInvalidMove(x, y, player, validation) {
+        switch (validation.reason) {
+            case 'out_of_range':
+                this.showMessage(`⚠️ 位置 (${x}, ${y}) 超出棋盘范围！`, 'error');
+                break;
+
+            case 'occupied':
+                this.showMessage(`⚠️ 位置 (${x}, ${y}) 已有棋子！`, 'error');
+                break;
+
+            case 'forbidden':
+                this.showForbiddenWarning(x, y, player, validation.forbiddenInfo);
+                break;
+
+            default:
+                this.showMessage('⚠️ 无效位置！', 'error');
+        }
+
+        this.ui.highlightForbiddenPosition(x, y);
+    }
+
+    showForbiddenWarning(x, y, player, forbiddenInfo) {
+        const posText = `(${x}, ${y})`;
+        let message = `🚫 ${posText} 禁手：${forbiddenInfo.description}`;
+
+        if (forbiddenInfo.type === 'double-four') {
+            const d = forbiddenInfo.details;
+            message += `\n   检测到：活四×${d.flex4} + 冲四×${d.block4}`;
+        } else if (forbiddenInfo.type === 'double-three') {
+            message += `\n   检测到：活三×${forbiddenInfo.details.flex3}`;
+        }
+
+        this.showMessage(message, 'warning');
+
+        console.warn(`禁手检测 [${posText}]:`, {
+            type: forbiddenInfo.type,
+            description: forbiddenInfo.description,
+            details: forbiddenInfo.details
+        });
     }
 
     async makeAIMove() {

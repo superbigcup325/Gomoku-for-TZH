@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>禁手检测功能测试</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #f5f5f5; padding: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h1 { color: #333; text-align: center; margin-bottom: 30px; }
+        .test-section { margin: 20px 0; padding: 20px; border: 2px solid #e0e0e0; border-radius: 8px; }
+        .test-section h2 { color: #666; font-size: 1.3em; margin-bottom: 15px; }
+        button {
+            background: #4CAF50; color: white; border: none; padding: 12px 24px;
+            border-radius: 5px; cursor: pointer; font-size: 14px; margin: 5px;
+        }
+        button:hover { background: #45a049; }
+        #log { 
+            background: #1e1e1e; color: #d4d4d4; padding: 15px; font-family: monospace; 
+            font-size: 13px; line-height: 1.6; max-height: 400px; overflow-y: auto; 
+            white-space: pre-wrap; word-wrap: break-word; border-radius: 5px; margin-top: 15px;
+        }
+        .pass { color: #4ec9b0; }
+        .fail { color: #f48771; }
+        .info { color: #9cdcfe; }
+        .summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-top: 20px; }
+        .stat { text-align: center; padding: 15px; background: #f8f9fa; border-radius: 8px; }
+        .stat-value { font-size: 28px; font-weight: bold; }
+        .stat-label { color: #666; margin-top: 5px; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>🚫 禁手检测功能测试</h1>
+
+    <div class="test-section">
+        <h2>🧪 禁手检测算法验证</h2>
+        <button onclick="runForbiddenTests()">▶️ 运行全部禁手测试</button>
+        <button onclick="document.getElementById('log').innerHTML=''" style="background:#6c757d;">🗑️ 清空日志</button>
+        <div id="log">等待测试...</div>
+        
+        <div id="summary" class="summary" style="display:none;">
+            <div class="stat"><div id="total" class="stat-value">0</div><div class="stat-label">总测试</div></div>
+            <div class="stat"><div id="passed" class="stat-value" style="color:#28a745;">0</div><div class="stat-label">✅ 通过</div></div>
+            <div class="stat"><div id="failed" class="stat-value" style="color:#dc3545;">0</div><div class="stat-label">❌ 失败</div></div>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>🎮 实际游戏测试</h2>
+        <p style="color:#666;">在下方棋盘中尝试落子，观察禁手提示效果：</p>
+        <button onclick="openGameTest()" style="background:#667eea;">🎮 打开游戏界面测试</button>
+    </div>
+</div>
+
+<script src="web/js/pattern.js"></script>
+<script src="web/js/board.js"></script>
+
+<script>
+var logEl = document.getElementById('log');
+
+function log(msg, type) {
+    type = type || '';
+    var cls = type === 'pass' ? 'pass' : (type === 'fail' ? 'fail' : 'info');
+    logEl.innerHTML += '<span class="' + cls + '">' + msg + '</span>\n';
+    logEl.scrollTop = logEl.scrollHeight;
+}
+
+function runForbiddenTests() {
+    logEl.innerHTML = '';
+    document.getElementById('summary').style.display = 'none';
+    
+    log('🚀 开始禁手检测算法测试', 'info');
+    log('═'.repeat(50), 'info');
+
+    var board = new Gomoku(15);
+    var total = 0;
+    var passed = 0;
+    var failed = 0;
+
+    function test(name, x, y, expectedType) {
+        total++;
+        var result = board.checkForbidden(x, y, Player.BLACK);
+        
+        if (expectedType === null) {
+            if (!result.isForbidden) {
+                passed++;
+                log('✅ ' + name + ' - 正确识别为非禁手', 'pass');
+            } else {
+                failed++;
+                log('❌ ' + name + ' - 错误标记为禁手: ' + result.type, 'fail');
+            }
+        } else {
+            if (result.isForbidden && result.type === expectedType) {
+                passed++;
+                log('✅ ' + name + ' - 正确检测到: ' + result.description, 'pass');
+            } else if (result.isForbidden) {
+                failed++;
+                log('❌ ' + name + ' - 检测到错误的禁手类型: ' + result.type + ' (预期: ' + expectedType + ')', 'fail');
+            } else {
+                failed++;
+                log('❌ ' + name + ' - 未检测到禁手 (预期: ' + expectedType + ')', 'fail');
+            }
+        }
+    }
+
+    // ===== 测试1：正常位置（非禁手）=====
+    log('\n📋 测试组1：正常位置（应非禁手）\n', 'info');
+    
+    test('中心点 (8,8)', 8, 8, null);
+    test('角点 (1,1)', 1, 1, null);
+    test('边缘 (1,8)', 1, 8, null);
+
+    // ===== 测试2：白棋无禁手 =====
+    log('\n📋 测试组2：白棋不受禁手规则限制\n', 'info');
+    
+    var whiteResult = board.checkForbidden(8, 8, Player.WHITE);
+    if (!whiteResult.isForbidden) {
+        passed++;
+        log('✅ 白棋在任何位置都不受禁手限制', 'pass');
+    } else {
+        failed++;
+        log('❌ 白棋被错误地判断为禁手', 'fail');
+    }
+
+    // ===== 测试3：模拟三三禁手场景 =====
+    log('\n📋 测试组3：三三禁手检测\n', 'info');
+    
+    board.set(8, 7, Player.BLACK);  // 设置第一个活三
+    board.set(8, 9, Player.BLACK);
+    board.set(8, 6, Player.BLACK);
+    
+    board.set(7, 8, Player.BLACK);  // 设置第二个活三
+    board.set(9, 8, Player.BLACK);
+    board.set(6, 8, Player.BLACK);
+
+    test('三三禁手位置 (8,8)', 8, 8, 'double-three');
+
+    // 清空棋盘
+    board = new Gomoku(15);
+
+    // ===== 测试4：模拟四四禁手场景 =====
+    log('\n📋 测试组4：四四禁手检测\n', 'info');
+    
+    board.set(8, 7, Player.BLACK);  // 第一个活四
+    board.set(8, 6, Player.BLACK);
+    board.set(8, 5, Player.BLACK);
+    
+    board.set(7, 8, Player.BLACK);  // 第二个冲四
+    board.set(6, 8, Player.BLACK);
+    board.set(5, 8, Player.BLACK);
+
+    test('四四禁手位置 (8,8)', 8, 8, 'double-four');
+
+    // 清空棋盘
+    board = new Gomoku(15);
+
+    // ===== 测试5：五连优先（形成五连时不是禁手）=====
+    log('\n📋 测试组5：五连优先规则\n', 'info');
+    
+    board.set(8, 6, Player.BLACK);
+    board.set(8, 7, Player.BLACK);
+    board.set(8, 9, Player.BLACK);
+    board.set(8, 10, Player.BLACK);
+
+    var fiveResult = board.checkForbidden(8, 8, Player.BLACK);
+    if (!fiveResult.isForbidden) {
+        passed++;
+        log('✅ 形成五连的位置不是禁手（即使同时形成其他禁手形状）', 'pass');
+    } else {
+        failed++;
+        log('❌ 五连位置被错误标记为禁手', 'fail');
+    }
+
+    // ===== 测试6：validPosition 集成测试 =====
+    log('\n📋 测试组6：validPosition 返回格式\n', 'info');
+    
+    board = new Gomoku(15);
+    
+    var validResult = board.validPosition(8, 8, Player.BLACK);
+    if (validResult.valid && validResult.reason === null) {
+        passed++;
+        log('✅ 有效位置返回正确格式', 'pass');
+    } else {
+        failed++;
+        log('❌ 有效位置返回格式错误', 'fail');
+    }
+
+    var invalidResult = board.validPosition(0, 0, Player.BLACK);
+    if (!invalidResult.valid && invalidResult.reason === 'out_of_range') {
+        passed++;
+        log('✅ 越界位置正确返回 out_of_range', 'pass');
+    } else {
+        failed++;
+        log('❌ 越界位置处理错误', 'fail');
+    }
+
+    // ===== 结果汇总 =====
+    log('\n' + '═'.repeat(50), 'info');
+    log('📊 测试结果汇总', 'info');
+    log('═'.repeat(50), 'info');
+    log('总测试数: ' + total, 'info');
+    log('✅ 通过: ' + passed, 'pass');
+    log('❌ 失败: ' + failed, fail ? 'fail' : 'info');
+    log('通过率: ' + (passed/total*100).toFixed(1) + '%', passed===total ? 'pass' : 'fail');
+
+    document.getElementById('summary').style.display = 'grid';
+    document.getElementById('total').textContent = total;
+    document.getElementById('passed').textContent = passed;
+    document.getElementById('failed').textContent = failed;
+
+    if (failed === 0) {
+        log('\n🎉 所有禁手检测测试通过！功能正常！', 'pass');
+    } else {
+        log('\n⚠️ 存在失败的测试，请检查上方错误信息', 'fail');
+    }
+
+    return { total: total, passed: passed, failed: failed };
+}
+
+function openGameTest() {
+    window.open('web/index.html', '_blank');
+}
+
+window.onload = function() {
+    log('✅ 禁手检测测试环境就绪', 'info');
+    log('   点击 "运行全部禁手测试" 开始验证', 'info');
+};
+</script>
+</body>
+</html>

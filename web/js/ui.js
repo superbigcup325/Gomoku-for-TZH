@@ -7,6 +7,7 @@ class GomokuUI {
         this.pieceRadius = 18;
         this.hoverPos = null;
         this.lastMove = null;
+        this.forbiddenPos = null;  // 禁手位置高亮
         this.boardSize = 15;
         this.currentGomoku = null;
 
@@ -222,6 +223,11 @@ class GomokuUI {
             this.drawLastMoveMarker(this.lastMove.x, this.lastMove.y);
         }
 
+        // 绘制禁手位置高亮警告
+        if (this.forbiddenPos) {
+            this.drawForbiddenMarker(this.forbiddenPos.x, this.forbiddenPos.y);
+        }
+
         // 绘制悬停提示
         if (this.hoverPos) {
             this.drawHoverPiece(this.hoverPos.x, this.hoverPos.y);
@@ -238,7 +244,8 @@ class GomokuUI {
             boardSize: this.boardSize,
             pieceCount: gomoku ? gomoku.getCurrentCount() : 0,
             lastMove: this.lastMove ? `${this.lastMove.x},${this.lastMove.y}` : null,
-            hoverPos: this.hoverPos ? `${this.hoverPos.x},${this.hoverPos.y}` : null
+            hoverPos: this.hoverPos ? `${this.hoverPos.x},${this.hoverPos.y}` : null,
+            forbiddenPos: this.forbiddenPos ? `${this.forbiddenPos.x},${this.forbiddenPos.y}` : null
         };
     }
 
@@ -466,6 +473,30 @@ class GomokuUI {
         this.ctx.stroke();
     }
 
+    drawForbiddenMarker(x, y) {
+        const { px, py } = this.boardPosToPixel(x, y);
+        const radius = this.cellSize * 0.4;
+
+        this.ctx.save();
+        this.ctx.globalAlpha = 0.8 + Math.sin(Date.now() / 150) * 0.2;
+
+        this.ctx.beginPath();
+        this.ctx.arc(px, py, radius, 0, Math.PI * 2);
+        this.ctx.fillStyle = 'rgba(255, 69, 0, 0.6)';
+        this.ctx.fill();
+        this.ctx.strokeStyle = '#FF4500';
+        this.ctx.lineWidth = 3;
+        this.ctx.stroke();
+
+        this.ctx.fillStyle = '#FFFFFF';
+        this.ctx.font = `bold ${Math.max(12, this.cellSize * 0.4)}px Arial`;
+        this.ctx.textAlign = 'center';
+        this.ctx.textBaseline = 'middle';
+        this.ctx.fillText('✕', px, py);
+
+        this.ctx.restore();
+    }
+
     drawHoverPiece(x, y) {
         const { px, py } = this.boardPosToPixel(x, y);
 
@@ -483,6 +514,21 @@ class GomokuUI {
 
     clearLastMove() {
         this.lastMove = null;
+    }
+
+    highlightForbiddenPosition(x, y) {
+        this.forbiddenPos = { x, y };
+        this.render();
+        setTimeout(() => {
+            this.clearForbiddenHighlight();
+        }, 2000);
+    }
+
+    clearForbiddenHighlight() {
+        if (this.forbiddenPos) {
+            this.forbiddenPos = null;
+            this.render();
+        }
     }
 
     render(gomoku = null) {

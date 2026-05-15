@@ -108,31 +108,67 @@ class Gomoku {
         return (x < 1 || x > this.size || y < 1 || y > this.size);
     }
 
-    isForbidden(x, y, player) {
-        if (player !== Player.BLACK) return false;
+    checkForbidden(x, y, player) {
+        const result = {
+            isForbidden: false,
+            type: null,
+            description: '',
+            details: {}
+        };
+
+        if (player !== Player.BLACK) return result;
 
         const formation = this.analyzeAll(x, y, player);
-        if (formation.hasFive()) return false;
+        if (formation.hasFive()) return result;
 
         for (let pattern of formation.patterns) {
-            if (pattern.isOverline()) return true;
+            if (pattern.isOverline()) {
+                result.isForbidden = true;
+                result.type = 'overline';
+                result.description = '长连禁手（超过5连）';
+                result.details.overline = true;
+                return result;
+            }
         }
 
         const flex4 = formation.countFlex4();
         const block4 = formation.countBlock4();
         const flex3 = formation.countFlex3();
 
-        if (flex4 >= 2 || flex4 + block4 >= 2) return true;
-        if (flex3 >= 2) return true;
+        if (flex4 >= 2 || flex4 + block4 >= 2) {
+            result.isForbidden = true;
+            result.type = 'double-four';
+            result.description = '四四禁手';
+            result.details.flex4 = flex4;
+            result.details.block4 = block4;
+            return result;
+        }
 
-        return false;
+        if (flex3 >= 2) {
+            result.isForbidden = true;
+            result.type = 'double-three';
+            result.description = '三三禁手';
+            result.details.flex3 = flex3;
+            return result;
+        }
+
+        return result;
+    }
+
+    isForbidden(x, y, player) {
+        return this.checkForbidden(x, y, player).isForbidden;
     }
 
     validPosition(x, y, player) {
-        if (this.outOfRange(x, y)) return false;
-        if (this.graph[this.pos(x, y)] !== 0) return false;
-        if (this.isForbidden(x, y, player)) return false;
-        return true;
+        if (this.outOfRange(x, y)) return { valid: false, reason: 'out_of_range', message: '超出棋盘范围' };
+        if (this.graph[this.pos(x, y)] !== 0) return { valid: false, reason: 'occupied', message: '该位置已有棋子' };
+
+        const forbidden = this.checkForbidden(x, y, player);
+        if (forbidden.isForbidden) {
+            return { valid: false, reason: 'forbidden', message: forbidden.description, forbiddenInfo: forbidden };
+        }
+
+        return { valid: true, reason: null, message: '' };
     }
 
     Win(x, y, currentPlayer) {

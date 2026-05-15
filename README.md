@@ -78,17 +78,25 @@ g++ -std=c++17 -O2 -I./include -o bin/gomoku_vs src/main_vs.cpp
 3. 重新编译到 `bin/` 目录
 4. 更新 `docs/README.md` (记录变更)
 
-### 📌 当前版本: v2.6.0 (2026-05-15)
+### 📌 当前版本: v2.7.0 (2026-05-16)
 
-**🔴 关键修复：PatternDB 防守识别缺陷（双语言同步）**
+**🚫 新增：完整禁手检测与提示系统**
 
-- **问题**：PatternDB 缺少"跳型棋子间隙被填"后的防守结果模式
-- **影响**：AI 无法正确评估"堵住跳活三/跳活二间隙位"的防守价值 → 导致输棋
-- **修复**：
-  - ✅ JavaScript 版本：[web/js/pattern.js](web/js/pattern.js) (+48个模式)
-  - ✅ C++ 版本：[include/pattern.h](include/pattern.h) (+68个模式)
-  - ✅ 双语言编译/测试均通过
-- **详情**：见 [docs/README.md](docs/README.md#v260-2026-05-15) 完整版本记录
+- **功能**：网页版黑棋禁手自动检测 + 友好提示 + 视觉反馈
+- **支持规则**：长连禁手、四四禁手、三三禁手、五连优先
+- **用户体验**：
+  - 精确位置坐标显示
+  - 详细禁手类型说明（三三/四四/长连）
+  - 橙色闪烁警告标记（2秒自动消失）
+  - 控制台完整日志记录
+- **修改文件**：
+  - [web/js/board.js](web/js/pattern.js) (增强禁手算法)
+  - [web/js/game.js](web/js/game.js) (集成处理流程)
+  - [web/js/ui.js](web/js/ui.js) (视觉反馈系统)
+- **测试工具**：[test_forbidden.html](test_forbidden.html) (自动化测试)
+- **详情**：见 [docs/README.md](docs/README.md#v270-2026-05-16) 完整版本记录
+
+### 📌 历史版本: v2.6.0 (2026-05-15)
 
 ## 📄 许可证
 
