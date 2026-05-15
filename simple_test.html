@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>PatternDB 修复验证 - 简化版</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #f0f0f0; padding: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h1 { color: #333; text-align: center; margin-bottom: 20px; }
+        button { 
+            background: #667eea; color: white; border: none; padding: 15px 30px; 
+            font-size: 16px; border-radius: 5px; cursor: pointer; margin: 10px;
+        }
+        button:hover { background: #5568d3; }
+        #log { 
+            background: #1e1e1e; color: #d4d4d4; padding: 20px; font-family: monospace; 
+            font-size: 14px; line-height: 1.6; max-height: 600px; overflow-y: auto; 
+            white-space: pre-wrap; word-wrap: break-word; border-radius: 5px; margin-top: 20px;
+        }
+        .pass { color: #4ec9b0; }
+        .fail { color: #f48771; }
+        .info { color: #9cdcfe; }
+        .summary { 
+            display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; 
+            margin-top: 20px; padding: 20px; background: #f8f9fa; border-radius: 8px;
+        }
+        .stat { text-align: center; }
+        .stat-value { font-size: 32px; font-weight: bold; color: #333; }
+        .stat-label { color: #666; margin-top: 5px; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>🧪 PatternDB 修复验证测试 v2.6.0</h1>
+    
+    <div style="text-align: center;">
+        <button onclick="runTest()">▶️ 运行全部测试 (14个用例)</button>
+        <button onclick="document.getElementById('log').innerHTML=''" style="background:#6c757d;">🗑️ 清空日志</button>
+    </div>
+
+    <div id="log">等待测试...</div>
+
+    <div id="summary" class="summary" style="display:none;">
+        <div class="stat"><div id="total" class="stat-value">0</div><div class="stat-label">总测试</div></div>
+        <div class="stat"><div id="passed" class="stat-value" style="color:#28a745;">0</div><div class="stat-label">✅ 通过</div></div>
+        <div class="stat"><div id="failed" class="stat-value" style="color:#dc3545;">0</div><div class="stat-label">❌ 失败</div></div>
+        <div class="stat"><div id="rate" class="stat-value" style="color:#667eea;">0%</div><div class="stat-label">通过率</div></div>
+    </div>
+</div>
+
+<script src="web/js/pattern.js"></script>
+
+<script>
+var logEl = document.getElementById('log');
+
+function log(msg, type) {
+    type = type || '';
+    var cls = type === 'pass' ? 'pass' : (type === 'fail' ? 'fail' : 'info');
+    logEl.innerHTML += '<span class="' + cls + '">' + msg + '</span>\n';
+    logEl.scrollTop = logEl.scrollHeight;
+}
+
+function runTest() {
+    logEl.innerHTML = '';
+    document.getElementById('summary').style.display = 'none';
+    
+    log('🚀 开始 PatternDB 修复验证测试', 'info');
+    log('═'.repeat(60), 'info');
+    
+    var db = PatternDB.getInstance();
+    db.ensureInitialized();
+    
+    var total = 0;
+    var passed = 0;
+    var failed = 0;
+    var failList = [];
+    
+    function test(name, arr, expectType) {
+        total++;
+        var key = db.encodeLine(arr, 1);
+        var result = db.lookup(key);
+        
+        var actualType = result ? result.type : 11;
+        var expectName = getTypeName(expectType);
+        var actualName = getTypeName(actualType);
+        
+        var isPass = actualType === expectType;
+        
+        if (isPass) {
+            passed++;
+            log('✅ ' + name, 'pass');
+            log('   数组: [' + arr.join(',') + '] → ' + actualName, 'pass');
+        } else {
+            failed++;
+            log('❌ ' + name, 'fail');
+            log('   数组: [' + arr.join(',') + ']', 'fail');
+            log('   预期: ' + expectName + ' | 实际: ' + actualName, 'fail');
+            if (!result) {
+                log('   ⚠️ PatternDB中不存在此模式！', 'fail');
+            }
+            
+            failList.push({
+                name: name,
+                arr: arr,
+                expect: expectName,
+                actual: actualName,
+                key: key.toString(16)
+            });
+        }
+        log('', 'info');
+    }
+    
+    function getTypeName(type) {
+        var names = {
+            0: 'OVERLINE', 1: 'FIVE', 2: 'FLEX4', 3: 'BLOCK4',
+            4: 'FLEX3', 5: 'BLOCK3', 6: 'FLEX2', 7: 'BLOCK2',
+            8: 'FLEX1', 9: 'BLOCK1', 11: 'DEFAULT'
+        };
+        return names[type] || ('UNKNOWN(' + type + ')');
+    }
+    
+    function getScore(type) {
+        var scores = {
+            0: 10000000, 1: 10000000, 2: 5000000, 3: 3000000,
+            4: 50000, 5: 1000, 6: 200, 7: 50, 8: 10, 9: 2
+        };
+        return scores[type] || 0;
+    }
+    
+    // ===== P0 测试：FLEX3 跳活三 =====
+    log('\n📋 P0 组：FLEX3 跳活三间隙防守 (应→BLOCK3)\n', 'info');
+    
+    test('FLEX3-1011-基本', [0,0,1,2,1,1,0,0,0], 5);
+    test('FLEX3-1011-左封', [2,0,1,2,1,1,0,0,0], 5);
+    test('FLEX3-1011-右封', [0,0,1,2,1,1,2,0,0], 5);
+    test('FLEX3-1011-双封', [2,0,1,2,1,1,2,2,0], 5);
+    
+    test('FLEX3-1101-基本', [0,0,1,1,2,1,0,0,0], 5);
+    test('FLEX3-1101-左封', [2,0,1,1,2,1,0,0,0], 5);
+    test('FLEX3-1101-右封', [0,0,1,1,2,1,2,0,0], 5);
+    
+    test('FLEX3-1011-偏移', [0,0,0,1,2,1,1,0,0], 5);
+    test('FLEX3-1101-偏移', [0,0,0,1,1,2,1,0,0], 5);
+    
+    // ===== P1 测试：FLEX2 跳活二 =====
+    log('\n📋 P1 组：FLEX2 跳活二间隙防守 (应→BLOCK2)\n', 'info');
+    
+    test('FLEX2-101-基本', [0,0,0,1,2,1,0,0,0], 7);
+    test('FLEX2-101-左封', [2,0,0,1,2,1,0,0,0], 7);
+    test('FLEX2-101-右封', [0,0,0,1,2,1,2,0,0], 7);
+    
+    test('FLEX2-1001-基本', [0,0,0,1,2,0,1,0,0], 7);
+    
+    test('FLEX2-101-偏移', [0,0,0,0,1,2,1,0,0], 7);
+    
+    // ===== 结果汇总 =====
+    log('═'.repeat(60), 'info');
+    log('📊 测试结果汇总', 'info');
+    log('═'.repeat(60), 'info');
+    log('总测试数: ' + total, 'info');
+    log('✅ 通过: ' + passed, 'pass');
+    log('❌ 失败: ' + failed, fail ? 'fail' : 'info');
+    log('通过率: ' + (passed/total*100).toFixed(1) + '%', passed===total ? 'pass' : 'fail');
+    
+    document.getElementById('summary').style.display = 'grid';
+    document.getElementById('total').textContent = total;
+    document.getElementById('passed').textContent = passed;
+    document.getElementById('failed').textContent = failed;
+    document.getElementById('rate').textContent = (passed/total*100).toFixed(1) + '%';
+    
+    if (failed > 0) {
+        log('\n⚠️ 失败详情:', 'fail');
+        for (var i = 0; i < failList.length; i++) {
+            var f = failList[i];
+            log('\n' + (i+1) + '. ' + f.name, 'fail');
+            log('   数组: [' + f.arr.join(',') + ']', 'fail');
+            log('   预期: ' + f.expect + ' → 实际: ' + f.actual, 'fail');
+            log('   🔧 需要在 pattern.js 添加此模式', 'fail');
+        }
+    } else {
+        log('\n🎉 完美通过！所有模式匹配正确！', 'pass');
+    }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PatternDB 精确诊断工具</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container { max-width: 1400px; margin: 0 auto; }
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+        .header h1 { font-size: 2.5em; margin-bottom: 10px; text-shadow: 2px 2px 4px rgba(0,0,0,0.3); }
+        .panel {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 3px solid #f0f0f0;
+        }
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 25px;
+            font-size: 1.1em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+            margin: 5px;
+        }
+        button:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6); }
+        button:disabled { background: #ccc; cursor: not-allowed; box-shadow: none; }
+        #output {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85em;
+            line-height: 1.5;
+            max-height: 600px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            border: 2px solid #e9ecef;
+        }
+        .line-pass { color: #28a745; padding: 4px 0; border-bottom: 1px solid #d4edda; }
+        .line-fail { color: #dc3545; padding: 4px 0; border-bottom: 1px solid #f8d7da; background: #fff5f5; }
+        .line-info { color: #17a2b8; padding: 4px 0; border-bottom: 1px solid #d1ecf1; }
+        .summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        .summary-item {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        .summary-value { font-size: 2em; font-weight: bold; margin: 10px 0; }
+        .summary-label { color: #666; font-size: 0.9em; text-transform: uppercase; letter-spacing: 1px; }
+        .progress-bar { width: 100%; height: 10px; background: #e9ecef; border-radius: 5px; margin-top: 15px; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, #28a745 0%, #20c997 100%); transition: width 0.5s ease; border-radius: 5px; }
+        .fail-detail { 
+            background: #fff3cd; 
+            border-left: 4px solid #ffc107; 
+            padding: 15px; 
+            margin: 10px 0; 
+            border-radius: 5px;
+            display: none;
+        }
+        code {
+            background: #e9ecef;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1>🔍 PatternDB 精确诊断工具</h1>
+        <p>v2.6.0 - 定位每个模式的匹配状态</p>
+    </div>
+
+    <div class="panel">
+        <div class="panel-header">
+            <div style="font-size: 1.3em; font-weight: 600;">🧪 模式匹配检测器</div>
+            <div id="status" style="padding: 8px 16px; border-radius: 20px; background: #fff3cd; color: #856404;">⏳ 待命</div>
+        </div>
+        
+        <div style="text-align: center; margin-bottom: 20px;">
+            <button onclick="runDiagnose()" id="runBtn">🔬 开始精确诊断</button>
+            <button onclick="clearOutput()" style="background: #6c757d;">🗑️ 清空</button>
+        </div>
+
+        <div id="output"></div>
+
+        <div id="failSection" class="fail-detail"></div>
+
+        <div id="summaryBox" class="summary" style="display: none;">
+            <div class="summary-item">
+                <div class="summary-label">总测试</div>
+                <div id="total" class="summary-value">0</div>
+            </div>
+            <div class="summary-item">
+                <div class="summary-label" style="color: #28a745;">✅ 通过</div>
+                <div id="passed" class="summary-value" style="color: #28a745;">0</div>
+            </div>
+            <div class="summary-item">
+                <div class="summary-label" style="color: #dc3545;">❌ 失败</div>
+                <div id="failed" class="summary-value" style="color: #dc3545;">0</div>
+            </div>
+            <div class="summary-item">
+                <div class="summary-label">通过率</div>
+                <div id="rate" class="summary-value" style="color: #667eea;">0%</div>
+            </div>
+        </div>
+
+        <div class="progress-bar"><div id="progress" class="progress-fill" style="width: 0%"></div></div>
+    </div>
+</div>
+
+<script src="web/js/pattern.js"></script>
+<script src="diagnose_pattern.js"></script>
+
+<script>
+const output = document.getElementById('output');
+const statusEl = document.getElementById('status');
+const runBtn = document.getElementById('runBtn');
+const summaryBox = document.getElementById('summaryBox');
+const failSection = document.getElementById('failSection');
+
+function log(msg, cls = '') {
+    const div = document.createElement('div');
+    div.className = `line-${cls}`;
+    div.textContent = msg;
+    output.appendChild(div);
+    output.scrollTop = output.scrollHeight;
+}
+
+function clearOutput() {
+    output.innerHTML = '';
+    summaryBox.style.display = 'none';
+    failSection.style.display = 'none';
+    statusEl.style.cssText = 'padding: 8px 16px; border-radius: 20px; background: #fff3cd; color: #856404;';
+    statusEl.textContent = '⏳ 待命';
+    document.getElementById('progress').style.width = '0%';
+}
+
+async function runDiagnose() {
+    clearOutput();
+    runBtn.disabled = true;
+    statusEl.style.cssText = 'padding: 8px 16px; border-radius: 20px; background: #cce5ff; color: #004085;';
+    statusEl.textContent = '🔄 诊断中...';
+
+    log('🚀 启动 PatternDB 精确诊断...', 'info');
+    log('━'.repeat(70), 'info');
+
+    await new Promise(r => setTimeout(r, 100));
+
+    try {
+        const result = diagnosePatternFix();
+
+        await new Promise(r => setTimeout(r, 200));
+
+        // 显示统计
+        summaryBox.style.display = 'grid';
+        document.getElementById('total').textContent = result.total;
+        document.getElementById('passed').textContent = result.passed;
+        document.getElementById('failed').textContent = result.failed;
+        document.getElementById('rate').textContent = (result.passed / result.total * 100).toFixed(1) + '%';
+        document.getElementById('progress').style.width = (result.passed / result.total * 100) + '%';
+
+        if (result.failed === 0) {
+            statusEl.style.cssText = 'padding: 8px 16px; border-radius: 20px; background: #d4edda; color: #155724;';
+            statusEl.textContent = '✅ 全部通过';
+            log('\n' + '━'.repeat(70), 'info');
+            log('🎉 完美！所有模式匹配正确！', 'info');
+        } else {
+            statusEl.style.cssText = 'padding: 8px 16px; border-radius: 20px; background: #f8d7da; color: #721c24;';
+            statusEl.textContent = `❌ ${result.failed} 个失败`;
+
+            // 显示失败详情
+            const fails = result.results.filter(r => !r.isPass);
+            let html = `<h3 style="margin-bottom: 10px;">⚠️ 发现 ${fails.length} 个失败模式：</h3>`;
+            fails.forEach((r, i) => {
+                html += `
+                    <div style="margin: 10px 0; padding: 10px; background: white; border-radius: 5px;">
+                        <strong>${i+1}. ${r.name}</strong><br>
+                        数组: <code>[${r.line.join(',')}]</code><br>
+                        编码Key: <code>0x${r.key}</code><br>
+                        预期: <code>${r.expected}</code> → 实际: <code>${r.actual}</code><br>
+                        ${!r.hasResult ? '<span style="color:red">⚠️ PatternDB中不存在此模式！需要添加</span>' : '<span style="color:orange">⚠️ 匹配到了错误的类型</span>'}
+                    </div>`;
+            });
+            html += `<hr style="margin: 15px 0;"><p><strong>🔧 修复方法：</strong></p>
+                       <ol style="margin-left: 20px;">
+                         <li>打开 <code>web/js/pattern.js</code></li>
+                         <li>在对应的 <code>addBlock3()</code> 或 <code>addBlock2()</code> 函数中添加缺失的模式</li>
+                         <li>格式：<code>addBlock${r.expected?.includes('BLOCK3') ? '3' : '2'}([数组], openEnds, gapSeg, gapSp);</code></li>
+                       </ol>`;
+            failSection.innerHTML = html;
+            failSection.style.display = 'block';
+            
+            log('\n' + '━'.repeat(70), 'fail');
+            log(`⚠️ 发现 ${result.failed} 个模式未正确匹配，详情见上方`, 'fail');
+        }
+
+    } catch(e) {
+        statusEl.style.cssText = 'padding: 8px 16px; border-radius: 20px; background: #f8d7da; color: #721c24;';
+        statusEl.textContent = '❌ 出错';
+        log(`\n❌ 执行错误: ${e.message}`, 'fail');
+        console.error(e);
+    }
+
+    runBtn.disabled = false;
+}
+
+window.addEventListener('load', () => {
+    log('✅ 诊断环境就绪', 'info');
+    log('   将逐个检测每个新增的防守模式是否存在于 PatternDB 中', 'info');
+    log('', 'info');
+    log('💡 点击 "开始精确诊断" 按钮...', 'info');
+});
+</script>
+</body>
+</html>
