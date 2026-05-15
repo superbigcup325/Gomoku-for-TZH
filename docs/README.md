@@ -90,6 +90,56 @@ g++ -std=c++17 -O2 -I./include -o bin/ver_api src/main_api.cpp
 
 ## 版本记录
 
+### v2.5.0 (2026-05-15)
+
+- **移除无效的阶段权重系统**：删除 `getStageWeight()` 及相关接口
+  - 原实现将 `stageWeight` 作为全局公因子，未实现真正的动态防守权重调整
+  - 删除 `openingWeight`、`middleWeight`、`endgameWeight` 属性
+  - 简化评估函数，移除所有 `stageWeight` 调用
+  - `evaluatePiece()` 中位置评分改为始终计算（不再仅限开局）
+  - 同步更新 JavaScript (minimax.js) 和 C++ (minimax.h) 双版本
+- **修复执白模式（AI先行）功能**：
+  - 问题：选择执白后游戏卡住，AI不自动走第一步
+  - 原因：`startNewGame()` 未在初始化后触发AI先行逻辑
+  - 修复：添加自动检测机制，当玩家执白时自动调用 `makeAIMove()`
+  - 影响：PvE模式下执白/执黑均可正常工作（无需后端服务，纯JS引擎即可）
+- **紧急修复棋盘渲染失败问题**：
+  - **Bug 1: `offset is not defined` 错误**（致命错误）
+    - 位置：`drawStarPointsToContext()` 函数第356-359行
+    - 原因：JavaScript `const` 块级作用域导致变量访问失败
+      - `offset` 在 `if (boardSize >= 13)` 块内定义
+      - 但在 `if (boardSize >= 19)` 块内引用时已超出作用域
+    - 修复：将 `offset` 提升为函数级别变量（`let offset = 0`）
+    - 影响：≥19格棋盘完全无法渲染（ReferenceError崩溃）
+  
+  - **Bug 2: 静态层缓存机制失效**（功能缺陷）
+    - 位置：`drawBoard()` 函数第186-197行
+    - 原因：缓存对象被覆盖，`canvas` 属性丢失
+      - `drawStaticLayer()` 设置 `renderCache = { canvas: offscreen }`
+      - 紧接着被 `renderCache = { ...currentState }` 覆盖
+      - 导致 `renderCache.canvas` 为 `undefined`
+    - 修复：重构为返回值模式 + 对象合并
+      - `drawStaticLayer()` 改为返回 offscreen Canvas
+      - `drawBoard()` 统一管理缓存状态
+    - 新增降级方案：`drawFallbackBackground()` 缓存失败时的备用渲染
+  
+  - **影响范围**：所有规格棋盘均受影响（5-38格）
+  - **严重程度**：Critical（导致页面白屏/报错）
+- **大规格棋盘性能优化（支持5-38格流畅运行）**：
+  - **前端渲染优化 (ui.js)**：
+    - 新增静态层缓存机制：背景+网格+星位只绘制一次，后续复用
+    - 大规格棋盘使用简化渲染模式：无渐变、无阴影的纯色棋子
+    - 动态Canvas缩放：超出700px时自动缩放显示
+    - 自适应鼠标节流：大规格下100ms间隔（正常50ms）
+    - 扩展规格支持：新增30格和38格档位的单元格尺寸配置
+  - **后端计算优化 (game.js + minimax.js)**：
+    - 新增 `getAdaptiveAIParams()` 方法：根据规格自动调整AI参数上限
+    - 规格映射表：10格(深度6/5000次) → 15格(4/2000) → 19格(3/1000) → 25格(2/500) → 30格(2/300) → 38格(2/200)
+    - Minimax候选点动态优化：大规格缩小搜索半径(1格)、减少候选点数量(15个)
+    - 保证响应时间：< 3秒（普通浏览器）
+  - **用户体验改进 (index.html)**：
+    - 界面提示更新：标注大规格自动优化功能
+
 ### v2.4.0 (2026-05-12)
 
 - **同步 JavaScript 版本到 C++ 版本**：确保 Web 端 AI 引擎与 C++ 完全一致
