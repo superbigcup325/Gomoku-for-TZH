@@ -50,8 +50,13 @@ class GomokuGame {
 
             // 验证参数范围
             this.boardSize = Math.max(5, Math.min(38, this.boardSize));
-            this.searchDepth = Math.max(1, Math.min(8, this.searchDepth));
-            this.iterations = Math.max(100, Math.min(10000, this.iterations));
+            
+            // 根据棋盘规格自动调整AI参数（性能优化）
+            const adaptiveParams = this.getAdaptiveAIParams(this.boardSize);
+            this.searchDepth = Math.min(this.searchDepth, adaptiveParams.maxDepth);
+            this.iterations = Math.min(this.iterations, adaptiveParams.maxIterations);
+            
+            console.log(`🎯 自适应参数: 深度=${this.searchDepth}, 迭代=${this.iterations} (规格${this.boardSize}×${this.boardSize})`);
 
             // 初始化棋盘
             this.gomoku = new Gomoku(this.boardSize);
@@ -91,7 +96,16 @@ class GomokuGame {
             }
             this.showMessage(`✅ 游戏就绪！${this.boardSize}×${this.boardSize} ${engineInfo} [${initTime}ms]`, 'success');
 
-            console.log(`🎮 新游戏: ${this.boardSize}x${this.boardSize}, 模式:${this.gameMode}, AI:${this.algorithm || '无'}, 初始化耗时:${initTime}ms`);
+            console.log(`🎮 新游戏: ${this.boardSize}x${this.boardSize}, 模式:${this.gameMode}, AI:${this.aiAlgorithm || '无'}, 初始化耗时:${initTime}ms`);
+
+            // PvE模式下，如果AI先行（玩家执白），自动触发AI第一步
+            if (this.gameMode === 'pve' && !this.gameOver) {
+                const currentPlayer = this.getCurrentPlayer();
+                if (currentPlayer !== this.playerColor) {
+                    console.log(`🤖 AI (${currentPlayer === Player.BLACK ? '黑棋' : '白棋'}) 先行...`);
+                    setTimeout(() => this.makeAIMove(), 100);
+                }
+            }
 
         } catch (error) {
             console.error('❌ 游戏启动失败:', error);
@@ -385,5 +399,27 @@ class GomokuGame {
             aiAlgorithm: this.aiAlgorithm,
             nodesSearched: this.ai ? this.ai.getNodesSearched() : 0
         };
+    }
+
+    getAdaptiveAIParams(boardSize) {
+        // 根据棋盘规格返回推荐的AI参数上限
+        // 目标：保证响应时间 < 3秒（普通浏览器）
+        const params = [
+            { maxSize: 10, maxDepth: 6, maxIterations: 5000 },
+            { maxSize: 15, maxDepth: 4, maxIterations: 2000 },
+            { maxSize: 19, maxDepth: 3, maxIterations: 1000 },
+            { maxSize: 25, maxDepth: 2, maxIterations: 500 },
+            { maxSize: 30, maxDepth: 2, maxIterations: 300 },
+            { maxSize: 38, maxDepth: 2, maxIterations: 200 }
+        ];
+
+        for (const p of params) {
+            if (boardSize <= p.maxSize) {
+                return { maxDepth: p.maxDepth, maxIterations: p.maxIterations };
+            }
+        }
+
+        // 超大规格：最保守参数
+        return { maxDepth: 2, maxIterations: 100 };
     }
 }
