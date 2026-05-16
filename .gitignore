@@ -11,6 +11,9 @@ bin/
 # Test binary
 *.test
 
+# Diagnostic/test HTML files (临时诊断文件，不提交)
+test_*.html
+
 # Output
 *.out
 
