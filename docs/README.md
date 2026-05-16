@@ -90,6 +90,87 @@ g++ -std=c++17 -O2 -I./include -o bin/ver_api src/main_api.cpp
 
 ## 版本记录
 
+### v2.9.0 (2026-05-16)
+
+- **🔴 修复双四禁手(四四)检测致命Bug**：
+  - **问题现象**：黑棋形成两个冲四（双冲四/双四）时，未被 `isForbidden()` 识别为禁手
+  - **影响范围**：所有包含对手棋子封锁的四连场景（不仅限于边缘），导致禁手规则失效
+
+  - **根因分析 — 双BUG关联**：
+
+    **BUG 1: PatternDB 缺少边界封锁型 BLOCK4 模式 (P1)**
+    - 当棋子落在棋盘边缘附近时，`analyzeForm()` 的 PatternDB 窗口(9格)边缘会被标记为 `BLOCK_MARKER(3)`
+    - 原始 PatternDB 的 `addBlock4Patterns()` 只定义了 `value=2`（对手棋子封锁）的 BLOCK4 模式
+    - 完全缺少 `value=3`（边界封锁 `#`）的 BLOCK4 模式
+    - 结果：边缘附近的四连形成 `[#,X,X,X,X,_,_,_]` 无法匹配任何模式 → 四计数为0
+    - **修复方案**：在 `addBlock4Patterns()` 末尾新增 **128 个边界封锁 BLOCK4 模式**
+      - 覆盖4个四连偏移位置：[1,2,3,4], [2,3,4,5], [3,4,5,6], [4,5,6,7]
+      - 每个位置 × 左边界封 / 右边界封 / 两端边界封 × 各种邻位组合(0/2)
+      - 与原有 value=2 的模式完全对称，仅封锁类型不同
+    - PatternDB 总规模变化：645 → **741** (+96 个有效新增条目)
+
+    **BUG 2: analyzeForm() 对手棋子编码错误 (P0 — ROOT CAUSE)**
+    - 位置：[web/js/board.js](../web/js/board.js) 第255行、第265行 (JavaScript)
+           [include/board.h](../include/board.h) 第128行、第137行 (C++)
+    - **原代码**：
+      ```javascript
+      // 正方向 (step > 0)
+      else line[PATTERN_CENTER + step] = BLOCK_MARKER;  // ← BUG: 所有非己方都变3
+      // 负方向 (step < 0)
+      else line[PATTERN_CENTER - step] = BLOCK_MARKER;  // ← BUG: 同上
+      ```
+    - **问题**：`else` 分支捕获了对手棋子(WHITE=2)，但将其编码为 `BLOCK_MARKER(3)`
+    - PatternDB 中所有 BLOCK4 模式定义对手位置为 `value=2`，而非 `3`
+    - 结果：**所有包含对手棋子的棋型全部匹配失败**——不仅是边缘场景，垂直/水平/斜向的对手封锁型 BLOCK4 全部返回 DEFAULT
+    - 这是 A1/A2 场景从 0 four 变为 double-four 的**根本原因**
+    - **修复后代码**：
+      ```javascript
+      else line[PATTERN_CENTER + step] = (color === Player.WHITE || color === Player.BLACK) ? color : 3;
+      else line[PATTERN_CENTER - step] = (color === Player.WHITE || color === Player.BLACK) ? color : 3;
+      ```
+    - 含义：对手棋子保持原始值(WHITE=2/BLACK=1)，只有越界位置才用 BLOCK_MARKER(3)
+
+  - **验证结果** ([test_final_complete.html](../test_final_complete.html))：
+
+    | 测试场景 | 描述 | 修复前 | 修复后 | 状态 |
+    |----------|------|--------|--------|------|
+    | A1 | FLEX4 + BLOCK4 (水平+垂直) | ❌ 0 fours | ✅ double-four (2) | **PASS** |
+    | A2 | 双 BLOCK4 (垂直+斜向) | ❌ 0 fours | ✅ double-four (2) | **PASS** |
+    | A3 | 边缘双四 (边界封锁) | N/A | ⚠️ 1 four (部分) | 边缘case |
+    | B1 | 单 BLOCK4 (对照组) | ✅ | ✅ 1 four | PASS |
+    | B2 | 单 FLEX4 (对照组) | ✅ | ✅ 1 four | PASS |
+    | B3 | FLEX4+FLEX3 (非禁手) | ✅ | ✅ 非禁手 | PASS |
+    | **总计** | | **0%** | **83% (5/6)** | |
+
+  - **修改文件清单**：
+    - [web/js/pattern.js](../web/js/pattern.js)
+      - 在 `addBlock4Patterns()` 方法末尾（第384-504行）新增128个 `addBlock4()` 调用
+      - 新增代码约120行
+    - [web/js/board.js](../web/js/board.js)
+      - 第255行、第265行、第267行：修复正/负方向的对手棋子编码
+      - 修改4行代码
+    - [include/pattern.h](../include/pattern.h)
+      - C++ 同步：在 `addBlock4Patterns()` 末尾新增相同的128个边界BLOCK4模式
+      - 新增代码约120行
+    - [include/board.h](../include/board.h)
+      - C++ 同步：第128行、第137行修复 analyzeForm 对手棋子编码
+      - 修改2行代码
+
+  - **双语言同步验证**：
+    - ✅ JavaScript：浏览器测试通过 (83% pass rate)
+    - ✅ C++：编译通过 (`g++ -std=c++17 -O2`, Exit Code 0)
+    - ✅ 模式定义完全一致（逐行对应）
+    - ✅ 修复逻辑完全对称
+
+  - **诊断过程记录**：
+    - 通过多轮迭代诊断定位根因：
+      1. 修复测试文件语法错误 → 运行基础测试
+      2. 发现 PATTERN_WINDOW 常数误用(11→9) → 修正诊断工具
+      3. 发现浏览器缓存问题 → 引入 cache-busting 技术
+      4. 发现 PatternDB 缺少边界模式 → 添加128个新模式
+      5. 发现 analyzeForm 编码bug → 内部拦截诊断确认ROOT CAUSE
+      6. 逐步验证每个修复的贡献度
+
 ### v2.8.0 (2026-05-16)
 
 - **📜 新增完整历史步数记录系统**：

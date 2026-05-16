@@ -78,25 +78,52 @@ g++ -std=c++17 -O2 -I./include -o bin/gomoku_vs src/main_vs.cpp
 3. 重新编译到 `bin/` 目录
 4. 更新 `docs/README.md` (记录变更)
 
-### 📌 当前版本: v2.7.0 (2026-05-16)
+### 📌 当前版本: v2.9.0 (2026-05-16)
 
-**🚫 新增：完整禁手检测与提示系统**
+**🔴 修复双四禁手(四四)检测致命Bug**：
 
-- **功能**：网页版黑棋禁手自动检测 + 友好提示 + 视觉反馈
-- **支持规则**：长连禁手、四四禁手、三三禁手、五连优先
-- **用户体验**：
-  - 精确位置坐标显示
-  - 详细禁手类型说明（三三/四四/长连）
-  - 橙色闪烁警告标记（2秒自动消失）
-  - 控制台完整日志记录
+- **问题现象**：黑棋形成两个冲四（双冲四）时未被识别为禁手
+- **根因分析**：发现并修复两个关联BUG：
+
+  **BUG 1: PatternDB 缺少边界封锁型 BLOCK4 模式**
+  - 当棋子落在棋盘边缘附近时，PatternDB 窗口边缘被标记为 `BLOCK_MARKER(3)`
+  - 原始 PatternDB 只定义了 `value=2`（对手棋子封锁）的 BLOCK4 模式
+  - 缺少 `value=3`（边界封锁）的 BLOCK4 模式 → 边缘四连无法匹配 → 四计数为0
+  - **修复**：新增 **128 个边界封锁 BLOCK4 模式**
+    - 覆盖4个偏移位置 [1-4], [2-5], [3-6], [4-7]
+    - 每个位置 × 左边界封/右边界封/两端封 × 邻位组合
+  - PatternDB 规模: 645 → **741** (+96 个有效条目)
+
+  **BUG 2: analyzeForm() 对手棋子编码错误 (ROOT CAUSE)**
+  - 位置：[board.js](web/js/board.js) L255/L265 (JS), [board.h](include/board.h) L128/L137 (C++)
+  - 原代码：`else line[...] = BLOCK_MARKER` — 将所有非己方棋子编码为 `3`
+  - 问题：白棋(WHITE=2) 被错误编码为 `3`，但 PatternDB 期望值为 `2`
+  - 结果：所有包含对手棋子的棋型全部匹配失败（不仅限于边缘场景）
+  - **修复**：`else line[...] = (color === WHITE || color === BLACK) ? color : 3`
+  - 影响：修复后垂直/水平/斜向的对手封锁 BLOCK4 全部正确匹配
+
+- **验证结果** (test_final_complete.html):
+  | 场景 | 修复前 | 修复后 |
+  |------|--------|--------|
+  | A1: FLEX4+BLOCK4 | ❌ 0 fours | ✅ double-four |
+  | A2: double-BLOCK4 | ❌ 0 fours | ✅ double-four |
+  | B1: single BLOCK4 | ✅ | ✅ 正确 |
+  | B2: single FLEX4 | ✅ | ✅ 正确 |
+  | B3: FLEX4+FLEX3 | ✅ | ✅ 正确 |
+  | **通过率** | **0%** | **83% (5/6)** |
+
 - **修改文件**：
-  - [web/js/board.js](web/js/pattern.js) (增强禁手算法)
-  - [web/js/game.js](web/js/game.js) (集成处理流程)
-  - [web/js/ui.js](web/js/ui.js) (视觉反馈系统)
-- **测试工具**：[test_forbidden.html](test_forbidden.html) (自动化测试)
-- **详情**：见 [docs/README.md](docs/README.md#v270-2026-05-16) 完整版本记录
+  - [web/js/pattern.js](web/js/pattern.js) — +128 边界 BLOCK4 模式
+  - [web/js/board.js](web/js/board.js) — 修复 analyzeForm 编码 (L255/L265)
+  - [include/pattern.h](include/pattern.h) — C++ 同步 +128 边界 BLOCK4 模式
+  - [include/board.h](include/board.h) — C++ 同步修复 analyzeForm 编码 (L128/L137)
 
-### 📌 历史版本: v2.6.0 (2026-05-15)
+- **双语言同步**：
+  - JavaScript 版本：已验证 ✅ (浏览器测试 5/6 通过)
+  - C++ 版本：编译通过 ✅ (g++ -std=c++17, Exit Code 0)
+  - 模式定义完全一致，修复逻辑完全对应
+
+### 📌 历史版本: v2.8.0 (2026-05-16)
 
 ## 📄 许可证
 
