@@ -125,7 +125,7 @@ inline Gomoku::Pattern Gomoku::analyzeForm(const int x,const int y,int dx,int dy
             Player color=getColor(nx,ny);
             if (color==player) line[PATTERN_CENTER+step]=static_cast<int>(player);
             else if (color==NONE) line[PATTERN_CENTER+step]=0;
-            else line[PATTERN_CENTER+step]=BLOCK_MARKER;
+            else line[PATTERN_CENTER+step]=(color==WHITE||color==BLACK)?static_cast<int>(color):BLOCK_MARKER;
         } else {
             line[PATTERN_CENTER+step]=BLOCK_MARKER;
         }
@@ -134,7 +134,7 @@ inline Gomoku::Pattern Gomoku::analyzeForm(const int x,const int y,int dx,int dy
             Player color=getColor(px,py);
             if (color==player) line[PATTERN_CENTER-step]=static_cast<int>(player);
             else if (color==NONE) line[PATTERN_CENTER-step]=0;
-            else line[PATTERN_CENTER-step]=BLOCK_MARKER;
+            else line[PATTERN_CENTER-step]=(color==WHITE||color==BLACK)?static_cast<int>(color):BLOCK_MARKER;
         } else {
             line[PATTERN_CENTER-step]=BLOCK_MARKER;
         }
