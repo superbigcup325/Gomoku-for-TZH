@@ -252,9 +252,9 @@ class Gomoku {
                 const color = this.getColor(nx, ny);
                 if (color === player) line[PATTERN_CENTER + step] = player;
                 else if (color === Player.NONE) line[PATTERN_CENTER + step] = 0;
-                else line[PATTERN_CENTER + step] = BLOCK_MARKER;
+                else line[PATTERN_CENTER + step] = (color === Player.WHITE || color === Player.BLACK) ? color : 3;
             } else {
-                line[PATTERN_CENTER + step] = BLOCK_MARKER;
+                line[PATTERN_CENTER + step] = 3;
             }
 
             let px = x - dx * step, py = y - dy * step;
@@ -262,9 +262,9 @@ class Gomoku {
                 const color = this.getColor(px, py);
                 if (color === player) line[PATTERN_CENTER - step] = player;
                 else if (color === Player.NONE) line[PATTERN_CENTER - step] = 0;
-                else line[PATTERN_CENTER - step] = BLOCK_MARKER;
+                else line[PATTERN_CENTER - step] = (color === Player.WHITE || color === Player.BLACK) ? color : 3;
             } else {
-                line[PATTERN_CENTER - step] = BLOCK_MARKER;
+                line[PATTERN_CENTER - step] = 3;
             }
         }
 
