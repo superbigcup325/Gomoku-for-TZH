@@ -6,6 +6,11 @@ class Minimax {
         this.nodeCount = 0;
         this.defendWeight = defendWeightValue;
 
+        this.killerMoves = new Array(maxDepthValue * 2);
+        for (let i = 0; i < maxDepthValue * 2; i++) {
+            this.killerMoves[i] = [-1, -1];
+        }
+
         if (this.self === Player.BLACK) {
             this.attackCoeff = 1.2;
             this.defenseCoeff = 1.0;
@@ -21,21 +26,21 @@ class Minimax {
             case PatternType.OVERLINE:
                 return 10000000;
             case PatternType.FLEX4:
-                return 5000000;
+                return 9000000;
             case PatternType.BLOCK4:
-                return 3000000;
+                return 1500000;
             case PatternType.FLEX3:
-                return 50000;
+                return 100000;
             case PatternType.BLOCK3:
-                return 1000;
+                return 5000;
             case PatternType.FLEX2:
-                return 200;
+                return 500;
             case PatternType.BLOCK2:
-                return 50;
+                return 100;
             case PatternType.FLEX1:
-                return 10;
+                return 20;
             case PatternType.BLOCK1:
-                return 2;
+                return 5;
             default:
                 return 0;
         }
@@ -50,7 +55,11 @@ class Minimax {
         const maxDist = Math.floor(size / 2);
 
         if (dist >= maxDist) return 1;
-        return (maxDist - dist + 1) * 5;
+        let baseScore = (maxDist - dist + 1) * 5;
+        const pieceCount = g.getCurrentCount();
+        if (pieceCount < 8)        baseScore *= 20;
+        else if (pieceCount < 20)  baseScore *= 5;
+        return baseScore;
     }
 
     evaluatePiece(g, x, y, player) {
@@ -148,6 +157,15 @@ class Minimax {
                             if (!g.outOfRange(nx, ny) && g.getColor(nx, ny) === Player.NONE) {
                                 const idx = (nx - 1) * size + (ny - 1);
                                 if (!visited[idx]) {
+                                    // 过滤禁手位置（仅对黑棋检测）
+                                    if (this.self === Player.BLACK && g.isForbidden(nx, ny, Player.BLACK)) {
+                                        visited[idx] = true;
+                                        continue;
+                                    }
+                                    if (this.opponent === Player.BLACK && g.isForbidden(nx, ny, Player.BLACK)) {
+                                        visited[idx] = true;
+                                        continue;
+                                    }
                                     candidates.push([nx, ny]);
                                     visited[idx] = true;
                                 }
@@ -159,7 +177,26 @@ class Minimax {
         }
 
         if (candidates.length === 0) {
-            candidates.push([Math.floor((size + 1) / 2), Math.floor((size + 1) / 2)]);
+            const center = Math.floor((size + 1) / 2);
+            // 如果中心点是禁手，寻找最近的合法位置
+            if (!(this.self === Player.BLACK && g.isForbidden(center, center, Player.BLACK)) &&
+                !(this.opponent === Player.BLACK && g.isForbidden(center, center, Player.BLACK))) {
+                candidates.push([center, center]);
+            } else {
+                for (let r = 1; r <= 3; r++) {
+                    for (let dx = -r; dx <= r; dx++) {
+                        for (let dy = -r; dy <= r; dy++) {
+                            const nx = center + dx, ny = center + dy;
+                            if (!g.outOfRange(nx, ny) && g.getColor(nx, ny) === Player.NONE) {
+                                if (!((this.self === Player.BLACK || this.opponent === Player.BLACK) && g.isForbidden(nx, ny, Player.BLACK))) {
+                                    candidates.push([nx, ny]);
+                                    return candidates;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
             return candidates;
         }
 
@@ -204,7 +241,7 @@ class Minimax {
         // 强制包含必防点，然后补充其他高分位置
         const result = [];
         const added = new Set();
-        
+
         // 先添加所有必防点
         for (const pt of mustDefendPoints) {
             const key = `${pt[0]},${pt[1]}`;
@@ -213,7 +250,7 @@ class Minimax {
                 added.add(key);
             }
         }
-        
+
         // 再添加其他候选点（使用动态上限）
         for (const pt of candidates) {
             const key = `${pt[0]},${pt[1]}`;
@@ -223,22 +260,85 @@ class Minimax {
             }
             if (result.length >= maxCandidates) break;
         }
-        
+
+        return result;
+    }
+
+    getThreatMoves(g) {
+        const size = g.getSize();
+        const visited = new Array(size * size).fill(false);
+        const threats = [];
+        const others = [];
+
+        for (let x = 1; x <= size; x++) {
+            for (let y = 1; y <= size; y++) {
+                if (g.getColor(x, y) !== Player.NONE) {
+                    for (let dx = -2; dx <= 2; dx++) {
+                        for (let dy = -2; dy <= 2; dy++) {
+                            const nx = x + dx, ny = y + dy;
+                            if (!g.outOfRange(nx, ny) && g.getColor(nx, ny) === Player.NONE) {
+                                const idx = (nx - 1) * size + (ny - 1);
+                                if (!visited[idx]) {
+                                    visited[idx] = true;
+                                    let maxSelfThreat = 0;
+                                    let maxOppThreat = 0;
+                                    for (const [ddx, ddy] of Config.directions) {
+                                        const pSelf = g.analyzeForm(nx, ny, ddx, ddy, this.self);
+                                        const pOpp = g.analyzeForm(nx, ny, ddx, ddy, this.opponent);
+                                        const selfLevel = (pSelf.isFlex4() || pSelf.isBlock4()) ? 2 :
+                                                           pSelf.isFlex3() ? 1 : 0;
+                                        const oppLevel = (pOpp.isFlex4() || pOpp.isBlock4()) ? 2 :
+                                                          pOpp.isFive() ? 3 :
+                                                          pOpp.isFlex3() ? 1 : 0;
+                                        if (selfLevel > maxSelfThreat) maxSelfThreat = selfLevel;
+                                        if (oppLevel > maxOppThreat) maxOppThreat = oppLevel;
+                                    }
+                                    const totalLevel = maxSelfThreat + maxOppThreat;
+                                    if (totalLevel >= 2) threats.push([nx, ny]);
+                                    else if (totalLevel >= 1) others.push([nx, ny]);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        const result = [];
+        for (const pt of threats)  { result.push(pt); if (result.length >= 5) return result; }
+        for (const pt of others)   { result.push(pt); if (result.length >= 5) return result; }
+        if (result.length === 0) result.push([Math.floor((size + 1) / 2), Math.floor((size + 1) / 2)]);
         return result;
     }
 
     alphaBeta(g, depth, alpha, beta, isMaximizing) {
         this.nodeCount++;
 
-        if (depth === 0 || g.GameOver()) return this.evaluate(g);
+        if (depth === 0 || g.GameOver()) {
+            if (depth === 0 && !g.GameOver()) return this.quiescenceSearch(g, alpha, beta, isMaximizing, 0);
+            return this.evaluate(g);
+        }
 
         const moves = this.getCandidateMoves(g);
         if (moves.length === 0) return 0;
 
+        // 杀手启发式：将本层杀手着法提到候选列表最前
+        for (let ki = 0; ki < 2; ki++) {
+            const km = this.killerMoves[depth * 2 + ki];
+            if (km[0] !== -1) {
+                const idx = moves.findIndex(m => m[0] === km[0] && m[1] === km[1]);
+                if (idx > 0) {
+                    const [item] = moves.splice(idx, 1);
+                    moves.unshift(item);
+                }
+            }
+        }
+
         if (isMaximizing) {
             let maxValue = Number.MIN_SAFE_INTEGER;
             for (const [x, y] of moves) {
-                if (!g.validPosition(x, y, this.self)) continue;
+                const validation = g.validPosition(x, y, this.self);
+                if (!validation.valid) continue;
 
                 g.set(x, y, this.self);
                 if (g.Win(x, y, this.self)) {
@@ -251,13 +351,18 @@ class Minimax {
 
                 maxValue = Math.max(maxValue, value);
                 alpha = Math.max(alpha, value);
-                if (beta <= alpha) break;
+                if (beta <= alpha) {
+                    this.killerMoves[depth * 2 + 1] = this.killerMoves[depth * 2];
+                    this.killerMoves[depth * 2] = [x, y];
+                    break;
+                }
             }
             return maxValue;
         } else {
             let minValue = Number.MAX_SAFE_INTEGER;
             for (const [x, y] of moves) {
-                if (!g.validPosition(x, y, this.opponent)) continue;
+                const validation = g.validPosition(x, y, this.opponent);
+                if (!validation.valid) continue;
 
                 g.set(x, y, this.opponent);
                 if (g.Win(x, y, this.opponent)) {
@@ -270,10 +375,55 @@ class Minimax {
 
                 minValue = Math.min(minValue, value);
                 beta = Math.min(beta, value);
-                if (beta <= alpha) break;
+                if (beta <= alpha) {
+                    this.killerMoves[depth * 2 + 1] = this.killerMoves[depth * 2];
+                    this.killerMoves[depth * 2] = [x, y];
+                    break;
+                }
             }
             return minValue;
         }
+    }
+
+    quiescenceSearch(g, alpha, beta, isMaximizing, qDepth) {
+        this.nodeCount++;
+        const standPat = this.evaluate(g);
+
+        if (isMaximizing) {
+            if (standPat >= beta) return beta;
+            if (standPat > alpha) alpha = standPat;
+        } else {
+            if (standPat <= alpha) return alpha;
+            if (standPat < beta) beta = standPat;
+        }
+
+        if (qDepth >= 6) return standPat;
+
+        const threats = this.getThreatMoves(g);
+        for (const [x, y] of threats) {
+            const p = isMaximizing ? this.self : this.opponent;
+            const validation = g.validPosition(x, y, p);
+            if (!validation.valid) continue;
+
+            g.set(x, y, p);
+            if (g.Win(x, y, p)) {
+                g.undo(x, y);
+                return isMaximizing ? (10000000 + qDepth) : -(10000000 + qDepth);
+            }
+
+            const value = this.quiescenceSearch(g, alpha, beta, !isMaximizing, qDepth + 1);
+            g.undo(x, y);
+
+            if (isMaximizing) {
+                if (value > alpha) alpha = value;
+                if (alpha >= beta) return beta;
+            } else {
+                if (value < beta) beta = value;
+                if (beta <= alpha) return alpha;
+            }
+        }
+
+        return isMaximizing ? alpha : beta;
     }
 
     getBestMove(g) {
@@ -284,7 +434,8 @@ class Minimax {
         const moves = this.getCandidateMoves(g);
 
         for (const [x, y] of moves) {
-            if (!g.validPosition(x, y, this.self)) continue;
+            const validation = g.validPosition(x, y, this.self);
+            if (!validation.valid) continue;
 
             g.set(x, y, this.self);
             if (g.Win(x, y, this.self)) {

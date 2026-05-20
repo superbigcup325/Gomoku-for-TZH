@@ -93,6 +93,11 @@ class MCTS {
                             if (!g.outOfRange(nx, ny) && g.getColor(nx, ny) === Player.NONE) {
                                 const idx = (nx - 1) * size + (ny - 1);
                                 if (!visited[idx]) {
+                                    // 过滤禁手位置（仅对黑棋检测）
+                                    if (g.isForbidden(nx, ny, Player.BLACK)) {
+                                        visited[idx] = true;
+                                        continue;
+                                    }
                                     candidates.push([nx, ny]);
                                     visited[idx] = true;
                                 }
@@ -104,7 +109,25 @@ class MCTS {
         }
 
         if (candidates.length === 0) {
-            candidates.push([Math.floor((size + 1) / 2), Math.floor((size + 1) / 2)]);
+            const center = Math.floor((size + 1) / 2);
+            // 如果中心点是禁手，寻找最近的合法位置
+            if (!g.isForbidden(center, center, Player.BLACK)) {
+                candidates.push([center, center]);
+            } else {
+                for (let r = 1; r <= 3; r++) {
+                    for (let dx = -r; dx <= r; dx++) {
+                        for (let dy = -r; dy <= r; dy++) {
+                            const nx = center + dx, ny = center + dy;
+                            if (!g.outOfRange(nx, ny) && g.getColor(nx, ny) === Player.NONE) {
+                                if (!g.isForbidden(nx, ny, Player.BLACK)) {
+                                    candidates.push([nx, ny]);
+                                    return candidates;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
             return candidates;
         }
 
@@ -152,7 +175,8 @@ class MCTS {
         const moves = this.getCandidateMoves(g, 2, 20); // 每层展开20个候选
 
         for (const [x, y] of moves) {
-            if (!g.validPosition(x, y, nextPlayer)) continue;
+            const validation = g.validPosition(x, y, nextPlayer);
+            if (!validation.valid) continue;
 
             let alreadyChild = false;
             for (const child of node.children) {
@@ -215,7 +239,8 @@ class MCTS {
             const [mx, my] = moves[idx];
 
             // 检查位置是否有效（包括禁手规则）
-            if (!sim.validPosition(mx, my, currentPlayer)) {
+            const simValidation = sim.validPosition(mx, my, currentPlayer);
+            if (!simValidation.valid) {
                 continue;
             }
 
@@ -252,7 +277,8 @@ class MCTS {
 
         // 全部展开为根节点的子节点
         for (const [x, y] of rootMoves) {
-            if (g.validPosition(x, y, this.self)) {
+            const rootValidation = g.validPosition(x, y, this.self);
+            if (rootValidation.valid) {
                 root.children.push(new MCTSNode(x, y, this.self, root));
             }
         }
